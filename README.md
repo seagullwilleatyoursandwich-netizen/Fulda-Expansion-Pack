@@ -20,7 +20,7 @@ Lead Artist - Illuminati (illuminati6759)
 
 QA - Illuminati, Seal, Rain "Raine"
 
-Contributors - ATLAS, Toxic_Cxnt05, Illuminati, Fcpx, Aeiou6
+Contributors - ATLAS, Illuminati, Fcpx, Aeiou6, Vurr
 
 # DEPENDENCIES - MUST INSTALL IN VERSIONS ABOVE V1.4.0!
 - VanillaAssetUtil - By ATLAS https://github.com/thebeninator/VanillaAssetUtil/releases/latest
