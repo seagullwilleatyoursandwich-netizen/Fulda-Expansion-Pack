@@ -27,9 +27,6 @@ Contributors - ATLAS, Illuminati, Fcpx, Aeiou6, Vurr
 
 Hello! This project aims to expand the GHPC roster by adding new tanks from different periods of the Cold War, ranging from the early 1960’s to the late 1990’s!
 
-<img width="1920" height="1080" alt="Still 2026-07-09 061234_1 1 1" src="https://github.com/user-attachments/assets/66a7d73a-9ba9-4d8f-9902-8e312adad943" />
-^vehicles featured are from ATLAS's M1A1 and Pact Increased Lethality mods respectively, they were used for the thumbnail because they're cool okay?^
-
 # !DEVELOPMENT ROADMAP!
 
 # NATO's Planned Lineup!
