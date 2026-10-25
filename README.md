@@ -31,7 +31,7 @@ Hello! This project aims to expand the GHPC roster by adding new tanks from diff
 
 # NATO's Planned Lineup!
 
-- # XM1A3 "CATTB" - The United States' overkill machine! (PLANNED)
+- # XM1A3 "CATTB" - The United States' overkill machine! (PLANNING PHASE)
 - Why? Because 120mm wasn't enough.
 <img width="780" height="508" alt="image" src="https://github.com/user-attachments/assets/fc9e0dd2-356b-4714-8406-40cc6508b338" />
 
@@ -87,7 +87,11 @@ The T-64BV and B1V both receive access to Agava-1 Thermal Imagers by default, mu
 <img width="925" height="596" alt="image" src="https://github.com/user-attachments/assets/64df9592-8c11-451e-9c46-4e3ed315b792" />
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/06bda0b0-3ab9-4b1a-b5f8-65bea862bb82" />
 
-- # Object 292 - PACT Bias incarnate (???)
+- # Object 292 + T-80-152 obr.1994 - PACT Bias incarnate + The Next Level (NEXT UPDATE)
 - The USSR's 152mm monster.
 <img width="550" height="365" alt="image" src="https://github.com/user-attachments/assets/9722b365-c3fb-4299-b4e4-e52c9de051bf" />
+
+- # Object 477 'Molot' - Soviet superweapon. (PLANNED - UNKNOWN ETA) 
+<img width="1024" height="680" alt="image" src="https://github.com/user-attachments/assets/7e462e51-23ca-462d-bd4f-78b7d3cc73f7" />
+
 
