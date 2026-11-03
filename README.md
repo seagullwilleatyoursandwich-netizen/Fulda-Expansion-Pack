@@ -48,7 +48,7 @@ By default, all converted M60 ERA's are given M833, but the M60A3 TTS *exclusive
 - The most infamous Leopard 2 variant makes its appearance in Gunner, HEAT, PC! This reflects the 6th batch (1988) of the Leopard 2A4's, equipped with C-Tech composite and DM33 APFSDS!
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c63cf451-2d40-4aec-be0b-b3428ae05fd0" />
 
-- # Leopard 2 KWS III (IN-DEVELOPMENT!)
+- # NPzK-140 (Leopard 2a4 140mm) (IN-DEVELOPMENT!)
 - Hans, this seems a bit overkill.  
 - Nonsense! The 140mm is perfectly reasonable.
 <img width="670" height="331" alt="image" src="https://github.com/user-attachments/assets/d391464a-7d51-4512-ae8c-0615de49c5fd" />
