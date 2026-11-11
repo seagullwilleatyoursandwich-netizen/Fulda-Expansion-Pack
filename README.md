@@ -90,6 +90,7 @@ The T-64BV and B1V both receive access to Agava-1 Thermal Imagers by default, mu
 - # Object 292 + T-80-152 obr.1994 - PACT Bias incarnate + The Next Level (NEXT UPDATE)
 - The USSR's 152mm monster.
 <img width="550" height="365" alt="image" src="https://github.com/user-attachments/assets/9722b365-c3fb-4299-b4e4-e52c9de051bf" />
+<img width="1424" height="1060" alt="image" src="https://github.com/user-attachments/assets/a1742123-6f18-426d-b6e1-d12357ee143f" />
 
 - # Object 477 'Molot' - Soviet superweapon. (PLANNED - UNKNOWN ETA) 
 <img width="1024" height="680" alt="image" src="https://github.com/user-attachments/assets/7e462e51-23ca-462d-bd4f-78b7d3cc73f7" />
