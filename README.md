@@ -87,7 +87,7 @@ The T-64BV and B1V both receive access to Agava-1 Thermal Imagers by default, mu
 <img width="925" height="596" alt="image" src="https://github.com/user-attachments/assets/64df9592-8c11-451e-9c46-4e3ed315b792" />
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/06bda0b0-3ab9-4b1a-b5f8-65bea862bb82" />
 
-- # Object 292 + T-80-152 obr.1994 - PACT Bias incarnate + The Next Level (NEXT UPDATE)
+- # Object 292 + T-80-152 obr.1994 - PACT Bias incarnate + The Next Level (SOON)
 - The USSR's 152mm monster.
 <img width="550" height="365" alt="image" src="https://github.com/user-attachments/assets/9722b365-c3fb-4299-b4e4-e52c9de051bf" />
 <img width="1424" height="1060" alt="image" src="https://github.com/user-attachments/assets/a1742123-6f18-426d-b6e1-d12357ee143f" />
