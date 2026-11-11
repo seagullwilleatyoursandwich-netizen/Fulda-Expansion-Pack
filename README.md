@@ -46,12 +46,12 @@ By default, all converted M60 ERA's are given M833, but the M60A3 TTS *exclusive
 
 - # Leopard 2A4 (Type C armour variant) (COMPLETE)
 - The most infamous Leopard 2 variant makes its appearance in Gunner, HEAT, PC! This reflects the 6th batch (1988) of the Leopard 2A4's, equipped with C-Tech composite and DM33 APFSDS!
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c63cf451-2d40-4aec-be0b-b3428ae05fd0" />
+<img width="2560" height="1440" alt="image" src="https://github.com/user-attachments/assets/3a07ff9a-8627-4e95-a7a6-7c023721b869" />
 
-- # NPzK-140 (Leopard 2a4 140mm) (IN-DEVELOPMENT!)
+- # NPzK-140 (Leopard 2a4 140mm) (COMPLETE)
 - Hans, this seems a bit overkill.  
 - Nonsense! The 140mm is perfectly reasonable.
-<img width="670" height="331" alt="image" src="https://github.com/user-attachments/assets/d391464a-7d51-4512-ae8c-0615de49c5fd" />
+<img width="2560" height="1440" alt="image" src="https://github.com/user-attachments/assets/764e09e9-61cb-467d-9632-f0e415225b28" />
 
 - # Leopard 2K - The Bundeswehr's answer to the M1! (COMPLETE!)
 - This prototype vehicle finally gets its spotlight in Gunner HEAT PC! The Leopard 2K (and its fictional upgrades) serve to replace Leopard 1A4 spawns, giving the Bundeswehr a stop-gap/sidegrade MBT against the main Leopard 2.
