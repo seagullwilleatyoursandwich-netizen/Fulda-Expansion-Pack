@@ -71,6 +71,7 @@ namespace Fulda1989
         }
     }
 
+    // Cosmetic driver that makes the citv follow the horizontal RCWS aim point
     public class PeriRh202Follower : MonoBehaviour
     {
         const string Rh202WeaponObjectName = "RH202_MarderWeapon";
@@ -80,7 +81,6 @@ namespace Fulda1989
         public Transform periTransform;
         public Transform periR12Optic;
 
-        // Cosmetic peri tracks RCWS with roof gun selected — not on 120/coax (corrupts main FCS angles).
         bool ShouldDriveCosmeticPeri()
         {
             PlayerInput input = PlayerInput.Instance;
@@ -270,6 +270,9 @@ namespace Fulda1989
             }
 
             bool owns = _gunner.WeaponsModule.ActiveWeapon?.Weapon == weapon;
+            if (owns && !fcs.StabsActive)
+                RH202.SeedRh202FcsAimFromBore(fcs, weapon);
+
             fcs.SetStabsActive(owns);
 
             if (fcs.enabled != owns)
@@ -457,6 +460,8 @@ namespace Fulda1989
             if (!ResolveMarderDonors(state))
                 return;
 
+            ReparentRh202GameplayToVehicleTurret(state);
+
             Vehicle vic = state.Vic;
             state.SterilizedMantletFcs = BeginSterilizedRh202Install(vic);
             Transform rh202Gun = state.Rh202Gun;
@@ -514,6 +519,12 @@ namespace Fulda1989
 
             state.Weapon = weapon;
             state.Feed = feed;
+
+            foreach (AimablePlatform strayPlatform in clone.GetComponentsInChildren<AimablePlatform>(true))
+            {
+                if (strayPlatform != null)
+                    UnityEngine.Object.Destroy(strayPlatform);
+            }
 
             Transform audioTransform = clone.transform.Find("FMODWeaponAudio");
             if (audioTransform != null)
@@ -680,6 +691,7 @@ namespace Fulda1989
                 elevationPlatform.LockTransformToRotation = true;
                 elevationPlatform._unit = vic;
                 elevationPlatform._equipmentManager = vic._equipmentManager;
+                elevationPlatform.ParentPlatform = traversePlatform;
             }
             finally
             {
@@ -688,7 +700,8 @@ namespace Fulda1989
             }
 
             PeriRh202Follower periFollower = periR12Transform.GetComponent<PeriRh202Follower>();
-            if (periFollower == null) periFollower = periR12Transform.gameObject.AddComponent<PeriRh202Follower>();
+            if (periFollower == null)
+                periFollower = periR12Transform.gameObject.AddComponent<PeriRh202Follower>();
 
             periFollower.rh202Traverse = traversePlatform;
             periFollower.rh202Elevation = elevationPlatform;
@@ -736,7 +749,7 @@ namespace Fulda1989
             donorSlot._reparentTarget = vehicleTurret;
             donorSlot.LinkedNightSight = null;
 
-            GameObject opticClone = UnityEngine.Object.Instantiate(marderPeriZ11.gameObject, vehicleTurret, false);
+            GameObject opticClone = UnityEngine.Object.Instantiate(marderPeriZ11.gameObject, vehicleTurret, true);
 
             marderPeriZ11.gameObject.SetActive(donorOpticWasActive);
             donorOptic.RegisterAtStart = donorRegisterAtStart;
@@ -781,10 +794,11 @@ namespace Fulda1989
             rh202Slot.LinkedNightSight = null;
             rh202Slot.ExclusiveWeapons = new WeaponSystem[] { weapon };
             rh202Slot._pairedOptic = optic;
-            rh202Slot._reparentTarget = vehicleTurret;
+            rh202Slot._reparentTarget = periR12Optic;
 
             LateFollow rh202LateFollow = opticClone.GetComponent<LateFollow>();
-            if (rh202LateFollow == null) rh202LateFollow = opticClone.AddComponent<LateFollow>();
+            if (rh202LateFollow == null)
+                rh202LateFollow = opticClone.AddComponent<LateFollow>();
 
             rh202LateFollow.FollowTarget = periR12Optic;
             rh202LateFollow.ForceToRoot = false;
@@ -816,6 +830,7 @@ namespace Fulda1989
             rh202Fcs.CurrentStabMode = StabilizationMode.Vector;
             rh202Fcs.SetStabsActive(false);
             weapon.FCS = rh202Fcs;
+            RebindRh202FcsAfterInstall(rh202Fcs, vic, traversePlatform, elevationPlatform, elevationTransform, weapon, optic);
 
             bool nightDonorRegisterAtStart = donorOptic.RegisterAtStart;
             Transform nightDonorReparentTarget = donorSlot._reparentTarget;
@@ -825,7 +840,7 @@ namespace Fulda1989
             donorSlot._reparentTarget = vehicleTurret;
             donorSlot.LinkedNightSight = null;
 
-            GameObject nightOpticClone = UnityEngine.Object.Instantiate(marderPeriZ11.gameObject, vehicleTurret, false);
+            GameObject nightOpticClone = UnityEngine.Object.Instantiate(marderPeriZ11.gameObject, vehicleTurret, true);
 
             donorOptic.RegisterAtStart = nightDonorRegisterAtStart;
             donorSlot._reparentTarget = nightDonorReparentTarget;
@@ -858,13 +873,7 @@ namespace Fulda1989
             nightSlot.LinkedNightSight = null;
             nightSlot._pairedOptic = nightOptic;
             nightSlot.ExclusiveWeapons = new WeaponSystem[] { weapon };
-            nightSlot._reparentTarget = vehicleTurret;
-
-            nightOptic.FCS = rh202Fcs;
-            nightOptic.Alignment = optic.Alignment;
-            nightOptic.RotateAzimuth = true;
-            nightOptic.RotateElevation = true;
-            nightOptic.LocalElevationLimits = elevationPlatform.LocalEulerLimits;
+            nightSlot._reparentTarget = periR12Optic;
 
             LateFollow nightFollow = nightOpticClone.GetComponent<LateFollow>();
             if (nightFollow == null)
@@ -873,6 +882,12 @@ namespace Fulda1989
             nightFollow.FollowTarget = periR12Optic;
             nightFollow.ForceToRoot = false;
             nightFollow.SuppressWarnings = true;
+
+            nightOptic.FCS = rh202Fcs;
+            nightOptic.Alignment = optic.Alignment;
+            nightOptic.RotateAzimuth = true;
+            nightOptic.RotateElevation = true;
+            nightOptic.LocalElevationLimits = elevationPlatform.LocalEulerLimits;
 
             rh202Slot.LinkedNightSight = nightSlot;
             rh202Fcs.NightOptic = nightOptic;
@@ -1039,6 +1054,10 @@ namespace Fulda1989
                 }
             }
 
+            state.TraversePlatform = traversePlatform;
+            state.ElevationPlatform = elevationPlatform;
+            state.Rh202Fcs = rh202Fcs;
+
             BindAuxSightToMainAndCoax(vic, AuxSightSlot, weapon);
 
             state.GunnerFallbackSlot = ResolveGunnerFallbackSlot(vic, rh202Slot, nightSlot, AuxSightSlot);
@@ -1090,10 +1109,7 @@ namespace Fulda1989
             state.ElevationPlatform = elevationPlatform;
             state.SightsInstalled = rh202Slot != null;
 
-            ReparentRh202GameplayToVehicleTurret(state);
             WireRh202DamageModel(vic, weapon, state.Rh202Gun, traversePlatform, elevationPlatform);
-            if (state.SightsInstalled)
-                AnchorRcwsOpticsToElevationPivot(state);
             RepairNonRoofFcsAfterRh202Clone(vic, rh202Fcs);
             EndSterilizedRh202Install(state);
             Rh202Diagnostics.QueueSpawn(vic, rh202Fcs);
@@ -1280,51 +1296,6 @@ namespace Fulda1989
 
             //MelonLogger.Msg("[RH202] End sterilized install: mantlet FCS restored, RH202_FCS active, ballistics re-registered.");
         }
-        static void AnchorRcwsOpticsToElevationPivot(InstallState state)
-        {
-            Transform elevationPivot = state.ElevationPlatform?.Transform ?? state.Rh202Gun?.parent;
-            if (elevationPivot == null)
-                return;
-
-            SyncCosmeticPeriToRcws(state.PeriR12Transform, state.PeriR12Optic, state.TraversePlatform, state.ElevationPlatform);
-
-            foreach (GameObject opticRoot in new[] { state.DayOpticObject, state.NightOpticObject })
-            {
-                if (opticRoot == null)
-                    continue;
-
-                LateFollow follow = opticRoot.GetComponent<LateFollow>();
-                if (follow != null)
-                    UnityEngine.Object.Destroy(follow);
-
-                opticRoot.transform.SetParent(elevationPivot, true);
-
-                CameraSlot slot = opticRoot.GetComponent<CameraSlot>();
-                if (slot != null)
-                    slot.DirectAttachOnly = true;
-            }
-
-            FireControlSystem fcs = state.Rh202Fcs;
-            if (fcs != null)
-            {
-                fcs.ReferenceTransform = elevationPivot;
-                fcs.Mounts = new AimablePlatform[] { state.TraversePlatform, state.ElevationPlatform };
-            }
-        }
-
-        static void SyncCosmeticPeriToRcws(Transform periTransform, Transform periOptic, AimablePlatform traverse, AimablePlatform elevation)
-        {
-            if (periTransform == null || periOptic == null || traverse?.Transform == null || elevation?.Transform == null)
-                return;
-
-            Vector3 periEuler = periTransform.localEulerAngles;
-            periEuler.y = traverse.Transform.localEulerAngles.y;
-            periTransform.localEulerAngles = periEuler;
-
-            Vector3 opticEuler = periOptic.localEulerAngles;
-            opticEuler.x = elevation.Transform.localEulerAngles.x;
-            periOptic.localEulerAngles = opticEuler;
-        }
         static void ReparentRh202GameplayToVehicleTurret(InstallState state)
         {
             Transform vehicleTurret = state?.VehicleTurret;
@@ -1344,6 +1315,99 @@ namespace Fulda1989
 
             twentyMmRig.SetParent(vehicleTurret, true);
             //MelonLogger.Msg("[RH202] Reparented 20MM RIG under gameplay turret (" + Rh202Diagnostics.DescribeHierarchyPath(vehicleTurret, state.Vic != null ? state.Vic.transform : null) + "), world pose preserved.");
+        }
+
+        /// <summary>
+        /// Marder FCS Awake runs on Instantiate while ReferenceTransform / AimPoint still point at the temp donor vehicle.
+        /// Rebind Leo mounts and clear that stale world aim so elevation does not snap at a ghost point.
+        /// </summary>
+        internal static void RebindRh202FcsAfterInstall(
+            FireControlSystem fcs,
+            Vehicle vic,
+            AimablePlatform traverse,
+            AimablePlatform elevation,
+            Transform referenceTransform,
+            WeaponSystem weapon,
+            UsableOptic mainOptic)
+        {
+            if (fcs == null || weapon == null || referenceTransform == null || traverse == null || elevation == null)
+                return;
+
+            fcs.ReferenceTransform = referenceTransform;
+            fcs.TurretPlatform = traverse;
+            fcs.Mounts = new AimablePlatform[] { traverse, elevation };
+            fcs.GatedAimablePlatforms = new AimablePlatform[] { traverse, elevation };
+            fcs.LinkedWeaponSystems = new WeaponSystem[] { weapon };
+            if (mainOptic != null)
+                fcs.MainOptic = mainOptic;
+
+            Transform bore = weapon.MuzzleIdentity;
+            if (bore == null)
+                bore = weapon.transform;
+
+            if (fcs.LaserOrigin == null)
+                fcs.LaserOrigin = referenceTransform;
+
+            if (vic != null && fcs.Chassis == null)
+                fcs.Chassis = vic.GetComponent<IChassis>();
+
+            float range = fcs.TargetRange;
+            if (range <= 0f)
+                range = fcs.CurrentRange;
+            if (range <= 0f)
+                range = fcs.DefaultRange;
+            if (range <= 0f)
+                range = 1000f;
+
+            Vector3 forward = bore.forward;
+            fcs.AimWorldVector = forward;
+            fcs.AimPoint = referenceTransform.position + forward * range;
+
+            AimablePlatform[] mounts = fcs.Mounts;
+            for (int i = 0; i < mounts.Length; i++)
+            {
+                if (mounts[i] != null)
+                    mounts[i].ForceAimVectorNow(forward);
+            }
+
+            if (fcs._initialized)
+                fcs.SetAimVector(forward, worldSpace: true);
+        }
+
+        internal static void SeedRh202FcsAimFromBore(FireControlSystem fcs, WeaponSystem weapon)
+        {
+            if (fcs == null || weapon == null)
+                return;
+
+            Transform bore = weapon.MuzzleIdentity;
+            if (bore == null)
+                bore = weapon.transform;
+
+            Transform reference = fcs.ReferenceTransform;
+            if (reference != null)
+            {
+                float range = fcs.TargetRange;
+                if (range <= 0f)
+                    range = fcs.CurrentRange;
+                if (range <= 0f)
+                    range = 1000f;
+
+                Vector3 forward = bore.forward;
+                fcs.AimWorldVector = forward;
+                fcs.AimPoint = reference.position + forward * range;
+            }
+
+            if (fcs.Mounts != null)
+            {
+                for (int i = 0; i < fcs.Mounts.Length; i++)
+                {
+                    if (fcs.Mounts[i] != null)
+                        fcs.Mounts[i].ForceAimVectorNow(bore.forward);
+                }
+            }
+
+            if (fcs._initialized)
+                fcs.SetAimVector(bore.forward, worldSpace: true);
         }
 
         internal static void RepairNonRoofFcsAfterRh202Clone(Vehicle vic, FireControlSystem rh202Fcs)
@@ -1461,8 +1525,6 @@ namespace Fulda1989
             cameraSlots[cameraSlots.Length - 1] = state.DaySlot;
             vic._designatedCameraSlots = cameraSlots;
 
-            //MelonLogger.Msg("[RH202] PERI day slot appended to DesignatedCameraSlots.");
-
             Rh202GunnerCameraLifecycle lifecycle = vic.GetComponent<Rh202GunnerCameraLifecycle>();
             if (lifecycle == null)
                 lifecycle = vic.gameObject.AddComponent<Rh202GunnerCameraLifecycle>();
@@ -1478,6 +1540,7 @@ namespace Fulda1989
                     cameraManager.UpdateWeaponExclusions(active);
             }
         }
+
         sealed class Rh202GunnerCameraLifecycle : MonoBehaviour
         {
             Vehicle _vehicle;
@@ -1492,7 +1555,7 @@ namespace Fulda1989
                 _roofWeapon = roofWeapon;
                 _daySlot = daySlot;
                 _gunnerFallbackSlot = gunnerFallbackSlot;
-                _lastWeapon = null;
+                _lastWeapon = GetGunnerActiveWeapon();
                 StartCoroutine(CommitAfterFrames());
             }
 
@@ -1546,37 +1609,58 @@ namespace Fulda1989
                     return;
 
                 cm.RescanCamSlots(_vehicle.DesignatedCameraSlots);
-                //MelonLogger.Msg("[RH202] Gunner camera rescan after RH202 install.");
+                _lastWeapon = GetGunnerActiveWeapon();
 
-                WeaponSystem active = GetGunnerActiveWeapon();
-                if (active != null)
-                {
-                    _lastWeapon = active;
-                    SyncForWeapon(null, active);
-                }
+                if (_lastWeapon != null)
+                    cm.UpdateWeaponExclusions(_lastWeapon);
             }
+
             void SyncForWeapon(WeaponSystem previousWeapon, WeaponSystem activeWeapon)
             {
                 CameraManager cm = CameraManager.Instance;
                 if (cm == null || activeWeapon == null)
                     return;
 
-                CameraSlot activeSlot = CameraSlot.ActiveInstance;
-                CameraSlot target = FindSlotForWeapon(activeWeapon);
-
-                if (activeSlot != null && !SlotAcceptsWeapon(activeSlot, activeWeapon))
-                {
-                    if (target != null)
-                        cm.ForceOpticChangeAfterWeaponChange(target);
-                    else if (activeSlot.SlotToUseOnDestroy != null)
-                        cm.ForceOpticChangeAfterWeaponChange(activeSlot.SlotToUseOnDestroy);
-                }
-                else if (previousWeapon == _roofWeapon && activeWeapon != _roofWeapon && activeSlot == null && target != null)
-                {
-                    cm.ForceOpticChangeAfterWeaponChange(target);
-                }
-
                 cm.UpdateWeaponExclusions(activeWeapon);
+
+                // Do not hijack the camera in third-person / exterior view (same intent as vanilla not forcing ADS).
+                if (cm.ExteriorMode)
+                    return;
+
+                CameraSlot activeSlot = CameraSlot.ActiveInstance;
+                if (activeSlot == null || previousWeapon == null)
+                    return;
+
+                // Match CameraManager.CheckForExclusiveOpticChangeNeeded: only swap if leaving a sight tied to the old weapon.
+                if (!SlotExclusiveToWeapon(activeSlot, previousWeapon))
+                    return;
+
+                if (SlotAcceptsWeapon(activeSlot, activeWeapon))
+                    return;
+
+                CameraSlot target = FindSlotForWeapon(activeWeapon);
+                if (target != null)
+                    cm.ForceOpticChangeAfterWeaponChange(target);
+                else if (activeSlot.SlotToUseOnDestroy != null)
+                    cm.ForceOpticChangeAfterWeaponChange(activeSlot.SlotToUseOnDestroy);
+            }
+
+            static bool SlotExclusiveToWeapon(CameraSlot slot, WeaponSystem weapon)
+            {
+                if (slot == null || weapon == null)
+                    return false;
+
+                WeaponSystem[] exclusive = slot.ExclusiveWeapons;
+                if (exclusive == null || exclusive.Length == 0)
+                    return false;
+
+                for (int i = 0; i < exclusive.Length; i++)
+                {
+                    if (exclusive[i] == weapon)
+                        return true;
+                }
+
+                return false;
             }
 
             static bool SlotAcceptsWeapon(CameraSlot slot, WeaponSystem weapon)
