@@ -7,7 +7,7 @@ using HarmonyLib;
 
 namespace Fulda1989
 {
-    /// <summary>Stop mantlet and RCWS FCS from adopting each other's weapon/ballistics.</summary>
+    // this stops the mantlet and RCWS FCS from adopting each other's weapon/ballistics.
     [HarmonyPatch(typeof(FireControlSystem), nameof(FireControlSystem.SetWeaponSystem))]
     public static class Rh202FcsSetWeaponSystemGuard
     {
@@ -57,7 +57,7 @@ namespace Fulda1989
         }
     }
 
-    /// <summary>Runtime RH202 is added after <see cref="Unit.Awake"/>; refresh before stock HUD reads damage.</summary>
+    // Runtime Rh202 is added after unit.Awake, this refreshes before stock HUD reads damage
     [HarmonyPatch(typeof(Unit), nameof(Unit.DamageStatus), MethodType.Getter)]
     public static class Rh202UnitDamageStatusPatch
     {
