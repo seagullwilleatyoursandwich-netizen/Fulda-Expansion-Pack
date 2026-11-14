@@ -1,4 +1,4 @@
-﻿using FuldaExpansion1989.Sights;
+using FuldaExpansion1989.Sights;
 using GHPC;
 using GHPC.Camera;
 using GHPC.Crew;
@@ -1312,11 +1312,7 @@ namespace Fulda1989
             }
         }
 
-        static void SyncCosmeticPeriToRcws(
-            Transform periTransform,
-            Transform periOptic,
-            AimablePlatform traverse,
-            AimablePlatform elevation)
+        static void SyncCosmeticPeriToRcws(Transform periTransform, Transform periOptic, AimablePlatform traverse, AimablePlatform elevation)
         {
             if (periTransform == null || periOptic == null || traverse?.Transform == null || elevation?.Transform == null)
                 return;
