@@ -1316,11 +1316,6 @@ namespace Fulda1989
             twentyMmRig.SetParent(vehicleTurret, true);
             //MelonLogger.Msg("[RH202] Reparented 20MM RIG under gameplay turret (" + Rh202Diagnostics.DescribeHierarchyPath(vehicleTurret, state.Vic != null ? state.Vic.transform : null) + "), world pose preserved.");
         }
-
-        /// <summary>
-        /// Marder FCS Awake runs on Instantiate while ReferenceTransform / AimPoint still point at the temp donor vehicle.
-        /// Rebind Leo mounts and clear that stale world aim so elevation does not snap at a ghost point.
-        /// </summary>
         internal static void RebindRh202FcsAfterInstall(
             FireControlSystem fcs,
             Vehicle vic,
