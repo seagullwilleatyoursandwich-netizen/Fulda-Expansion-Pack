@@ -1199,8 +1199,8 @@ namespace Fulda1989
                 fcs.enabled = false;
             }
 
-            if (restores.Count > 0)
-                MelonLogger.Msg("[RH202] Sterilized " + restores.Count + " mantlet FCS during RCWS install.");
+            //if (restores.Count > 0)
+            //    MelonLogger.Msg("[RH202] Sterilized " + restores.Count + " mantlet FCS during RCWS install.");
 
             return restores;
         }
@@ -1278,7 +1278,7 @@ namespace Fulda1989
             if (loadoutManager != null)
                 loadoutManager.RegisterAllBallistics();
 
-            MelonLogger.Msg("[RH202] End sterilized install: mantlet FCS restored, RH202_FCS active, ballistics re-registered.");
+            //MelonLogger.Msg("[RH202] End sterilized install: mantlet FCS restored, RH202_FCS active, ballistics re-registered.");
         }
         static void AnchorRcwsOpticsToElevationPivot(InstallState state)
         {
@@ -1343,7 +1343,7 @@ namespace Fulda1989
                 return;
 
             twentyMmRig.SetParent(vehicleTurret, true);
-            MelonLogger.Msg("[RH202] Reparented 20MM RIG under gameplay turret (" + Rh202Diagnostics.DescribeHierarchyPath(vehicleTurret, state.Vic != null ? state.Vic.transform : null) + "), world pose preserved.");
+            //MelonLogger.Msg("[RH202] Reparented 20MM RIG under gameplay turret (" + Rh202Diagnostics.DescribeHierarchyPath(vehicleTurret, state.Vic != null ? state.Vic.transform : null) + "), world pose preserved.");
         }
 
         internal static void RepairNonRoofFcsAfterRh202Clone(Vehicle vic, FireControlSystem rh202Fcs)
@@ -1379,7 +1379,7 @@ namespace Fulda1989
 
                 info.Weapon.FCS = mantletFcs;
                 info.FCS = mantletFcs;
-                MelonLogger.Msg("[RH202] Repaired " + info.Role + " FCS pointer after RCWS FCS clone.");
+                //MelonLogger.Msg("[RH202] Repaired " + info.Role + " FCS pointer after RCWS FCS clone.");
             }
         }
 
@@ -1461,7 +1461,7 @@ namespace Fulda1989
             cameraSlots[cameraSlots.Length - 1] = state.DaySlot;
             vic._designatedCameraSlots = cameraSlots;
 
-            MelonLogger.Msg("[RH202] PERI day slot appended to DesignatedCameraSlots.");
+            //MelonLogger.Msg("[RH202] PERI day slot appended to DesignatedCameraSlots.");
 
             Rh202GunnerCameraLifecycle lifecycle = vic.GetComponent<Rh202GunnerCameraLifecycle>();
             if (lifecycle == null)
@@ -1546,7 +1546,7 @@ namespace Fulda1989
                     return;
 
                 cm.RescanCamSlots(_vehicle.DesignatedCameraSlots);
-                MelonLogger.Msg("[RH202] Gunner camera rescan after RH202 install.");
+                //MelonLogger.Msg("[RH202] Gunner camera rescan after RH202 install.");
 
                 WeaponSystem active = GetGunnerActiveWeapon();
                 if (active != null)
@@ -1668,7 +1668,7 @@ namespace Fulda1989
             SubscribeRh202DamageHudRefresh(vic, breechHit, barrelHit, mountHit);
             RefreshUnitDamageStatuses(vic);
 
-            MelonLogger.Msg("[RH202 DM] Roof gun damage model wired.");
+            //MelonLogger.Msg("[RH202 DM] Roof gun damage model wired.");
         }
         static void StripRh202ColliderProxy(Collider collider)
         {
