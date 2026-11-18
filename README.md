@@ -52,7 +52,8 @@ By default, all converted M60 ERA's are given M833, but the M60A3 TTS *exclusive
 - Hans, this seems a bit overkill.  
 - Nonsense! The 140mm is perfectly reasonable.
 <img width="2558" height="1437" alt="image" src="https://github.com/user-attachments/assets/e68e4981-548a-42ac-bf31-c9b6faf40aa2" />
-(photo by troik_xx !!!)
+<img width="2560" height="1440" alt="image" src="https://github.com/user-attachments/assets/d11bd23d-85f8-4a64-a475-9a0982e5a2ba" />
+(first photo by troik_xx !!!)
 
 - # Leopard 2K - The Bundeswehr's answer to the M1! (COMPLETE!)
 - This prototype vehicle finally gets its spotlight in Gunner HEAT PC! The Leopard 2K (and its fictional upgrades) serve to replace Leopard 1A4 spawns, giving the Bundeswehr a stop-gap/sidegrade MBT against the main Leopard 2.
