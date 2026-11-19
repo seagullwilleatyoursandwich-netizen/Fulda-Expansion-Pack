@@ -1,4 +1,6 @@
-﻿using GHPC.Equipment;
+using GHPC;
+using GHPC.Equipment;
+using GHPC.Equipment.Lamps;
 using GHPC.Equipment.Optics;
 using GHPC.State;
 using GHPC.Utility;
@@ -12,10 +14,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using UnityEngine;
-using HarmonyLib;
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using HarmonyLib;
+using UnityEngine;
 using Module = ModUtil.Module;
 
 namespace Fulda1989
@@ -23,24 +24,146 @@ namespace Fulda1989
     public class T64BV : Module
     {
         static MelonPreferences_Entry<bool> t64bv_patch;
-        static MelonPreferences_Entry<string> t64bv_ammo_type;
-        static MelonPreferences_Entry<string> t64bv_heat_type;
-        static MelonPreferences_Entry<bool> t64bv_random_ammo;
-        static MelonPreferences_Entry<List<string>> t64bv_random_ammo_pool;
-        static MelonPreferences_Entry<bool> t64bv_thermals;
-        static MelonPreferences_Entry<string> thermals_qualityt64bv;
-        static MelonPreferences_Entry<bool> kontakt1;
-        static MelonPreferences_Entry<int> t64b1_1981_chance;
-        static MelonPreferences_Entry<int> t64b1_1984_chance;
-        static MelonPreferences_Entry<int> t64b_1981_chance;
-        static MelonPreferences_Entry<int> t64b_1984_chance;
+        static MelonPreferences_Entry<string> t64bv_ammo_type_1985;
+        static MelonPreferences_Entry<string> t64bv_heat_type_1985;
+        static MelonPreferences_Entry<bool> t64bv_random_ammo_1985;
+        static MelonPreferences_Entry<List<string>> t64bv_random_ammo_pool_1985;
+
+        static MelonPreferences_Entry<string> t64bv_ammo_type_1988;
+        static MelonPreferences_Entry<string> t64bv_heat_type_1988;
+        static MelonPreferences_Entry<bool> t64bv_random_ammo_1988;
+        static MelonPreferences_Entry<List<string>> t64bv_random_ammo_pool_1988;
         static MelonPreferences_Entry<bool> zoom_snapper;
-        private sealed class ConversionDecision
+
+        const string AgavaPreset = "low";
+
+        public static bool PatchEnabled => t64bv_patch != null && t64bv_patch.Value;
+
+        struct BvVariant
         {
-            public bool WillConvert;
+            public string FriendlyName;
+            public bool HasAgava;
         }
 
-        private static readonly ConditionalWeakTable<Vehicle, ConversionDecision> conversionDecisions = new ConditionalWeakTable<Vehicle, ConversionDecision>();
+        static bool TryGetVariant(string uniqueName, out BvVariant variant)
+        {
+            variant = default;
+
+            if (string.IsNullOrEmpty(uniqueName))
+                return false;
+
+            if (string.Equals(uniqueName, FuldaStandaloneRegistrations.T64BvUnit, StringComparison.OrdinalIgnoreCase))
+            {
+                variant = new BvVariant { FriendlyName = "T-64BV obr.1985", HasAgava = false };
+                return true;
+            }
+
+            if (string.Equals(uniqueName, FuldaStandaloneRegistrations.T64Bv1988Unit, StringComparison.OrdinalIgnoreCase))
+            {
+                variant = new BvVariant { FriendlyName = "T-64BV obr.1988", HasAgava = true };
+                return true;
+            }
+
+            if (string.Equals(uniqueName, FuldaStandaloneRegistrations.T64Bv1Unit, StringComparison.OrdinalIgnoreCase))
+            {
+                variant = new BvVariant { FriendlyName = "T-64BV1 obr.1985", HasAgava = false };
+                return true;
+            }
+
+            if (string.Equals(uniqueName, FuldaStandaloneRegistrations.T64Bv1_1988Unit, StringComparison.OrdinalIgnoreCase))
+            {
+                variant = new BvVariant { FriendlyName = "T-64BV1 obr.1988", HasAgava = true };
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsStandaloneSpawn(Vehicle vic)
+        {
+            return vic != null && TryGetVariant(vic.UniqueName, out _);
+        }
+
+        static string ResolveApRound(BvVariant variant)
+        {
+            bool obr1988 = variant.HasAgava;
+
+            MelonPreferences_Entry<bool> randomToggle = obr1988 ? t64bv_random_ammo_1988 : t64bv_random_ammo_1985;
+            MelonPreferences_Entry<List<string>> randomPool = obr1988 ? t64bv_random_ammo_pool_1988 : t64bv_random_ammo_pool_1985;
+            MelonPreferences_Entry<string> fixedAp = obr1988 ? t64bv_ammo_type_1988 : t64bv_ammo_type_1985;
+
+            if (randomToggle != null && randomToggle.Value
+                && randomPool != null && randomPool.Value != null && randomPool.Value.Count > 0)
+            {
+                int pick = UnityEngine.Random.Range(0, randomPool.Value.Count);
+                return randomPool.Value[pick];
+            }
+
+            return fixedAp != null ? fixedAp.Value : "3BM32";
+        }
+
+        static string ResolveHeatRound(BvVariant variant)
+        {
+            MelonPreferences_Entry<string> heat = variant.HasAgava ? t64bv_heat_type_1988 : t64bv_heat_type_1985;
+            return heat != null ? heat.Value : "3BK18M";
+        }
+
+        const string UfpTextolitePath = "T64_armour_hull/textolite_1";
+
+        static Transform FindUfpTextoliteTransform(Vehicle vic)
+        {
+            LateFollowTarget lateFollow = vic.GetComponent<LateFollowTarget>();
+            if (lateFollow != null && lateFollow._lateFollowers != null)
+            {
+                foreach (LateFollow follower in lateFollow._lateFollowers)
+                {
+                    if (follower == null)
+                        continue;
+
+                    Transform hit = follower.transform.Find(UfpTextolitePath);
+                    if (hit != null)
+                        return hit;
+                }
+            }
+
+            foreach (Transform t in vic.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name != "textolite_1")
+                    continue;
+
+                if (t.parent != null && t.parent.name == "T64_armour_hull")
+                    return t;
+            }
+
+            return null;
+        }
+
+        static void ApplyFiveLayerUfpArmour(Vehicle vic)
+        {
+            Armour.Init();
+
+            if (Armour.t64bvUfpFiveLayer == null)
+                return;
+
+            Transform ufp = FindUfpTextoliteTransform(vic);
+            if (ufp == null)
+                return;
+
+            VariableArmor armor = ufp.GetComponent<VariableArmor>() ?? ufp.GetComponentInChildren<VariableArmor>(true);
+            if (armor == null)
+                return;
+
+            armor._armorType = Armour.t64bvUfpFiveLayer;
+            armor._name = "5-layer UFP";
+
+            AarVisual aar = ufp.GetComponent<AarVisual>() ?? ufp.GetComponentInChildren<AarVisual>(true);
+            if (aar != null && T64Assets.aar5layerufp != null)
+            {
+                aar.AarMaterial = T64Assets.aar5layerufp;
+                aar.UpdateVisibility();
+            }
+        }
+
         public static void Config(MelonPreferences_Category cfg)
         {
             var random_ammo_pool = new List<string>()
@@ -52,95 +175,56 @@ namespace Fulda1989
             };
 
             t64bv_patch = cfg.CreateEntry<bool>("T-64BV Patch", true);
-            t64bv_patch.Comment = "Enables T64BV Patch";
+            t64bv_patch.Comment = "Stand-alone T-64BV / T-64BV1 (obr.1985 & obr.1988 Agava). Kontakt-1 ERA is always applied.";
 
-            t64bv_ammo_type = cfg.CreateEntry<string>("AP Round (T-64BV)", "3BM32");
-            t64bv_ammo_type.Comment = "3BM32, 3BM26 (composite optimized), 3BM42 (composite optimized), 3BM46";
-            t64bv_ammo_type.Description = " ";
+            t64bv_ammo_type_1985 = cfg.CreateEntry<string>("AP Round (T-64BV)", "3BM32");
+            t64bv_ammo_type_1985.Comment = "T-64BV / T-64BV1 obr.1985. 3BM32, 3BM26, 3BM42, 3BM46";
 
-            t64bv_heat_type = cfg.CreateEntry<string>("HEAT Round (T-64BV)", "3BK18M");
-            t64bv_heat_type.Comment = "3BK18M";
-            t64bv_heat_type.Description = " ";
+            t64bv_heat_type_1985 = cfg.CreateEntry<string>("HEAT Round (T-64BV)", "3BK18M");
+            t64bv_heat_type_1985.Comment = "3BK18M";
 
-            t64bv_random_ammo = cfg.CreateEntry<bool>("Random AP Round (T-64BV)", false);
-            t64bv_random_ammo_pool = cfg.CreateEntry<List<string>>("Random AP Round Pool (T-64BV)", random_ammo_pool);
-            t64bv_random_ammo_pool.Comment = "3BM26, 3BM32, 3BM42, 3BM46";
+            t64bv_random_ammo_1985 = cfg.CreateEntry<bool>("Random AP Round (T-64BV)", false);
+            t64bv_random_ammo_pool_1985 = cfg.CreateEntry<List<string>>("Random AP Round Pool (T-64BV)", random_ammo_pool);
+            t64bv_random_ammo_pool_1985.Comment = "3BM26, 3BM32, 3BM42, 3BM46";
 
-            kontakt1 = cfg.CreateEntry<bool>("Kontakt-1 (T-64BV & T-64B1V)", true);
-            t64b_1981_chance = cfg.CreateEntry<int>("T-64B 1981 -> T-64BV Chance", 30);
-            t64b_1984_chance = cfg.CreateEntry<int>("T-64B 1984 -> T-64BV Chance", 70);
+            t64bv_ammo_type_1988 = cfg.CreateEntry<string>("AP Round (T-64BV 1988)", "3BM32");
+            t64bv_ammo_type_1988.Comment = "T-64BV / T-64BV1 obr.1988. 3BM32, 3BM26, 3BM42, 3BM46";
 
-            t64b1_1981_chance = cfg.CreateEntry<int>("T-64B1 1981 -> T-64BV Chance", 30);
-            t64b1_1984_chance = cfg.CreateEntry<int>("T-64B1 1984 -> T-64BV Chance", 70);
+            t64bv_heat_type_1988 = cfg.CreateEntry<string>("HEAT Round (T-64BV 1988)", "3BK18M");
+            t64bv_heat_type_1988.Comment = "3BK18M";
 
-            t64bv_thermals = cfg.CreateEntry<bool>("Has Thermals (T-64BV)", true);
-            t64bv_thermals.Description = " ";
-            t64bv_thermals.Comment = "Replaces night vision sight with thermal sight for T-64BV/BV1 variants";
-            thermals_qualityt64bv = cfg.CreateEntry<string>("Thermals Quality (T-64BV & T-64BV1)", "Low");
-            thermals_qualityt64bv.Comment = "Low, High";
+            t64bv_random_ammo_1988 = cfg.CreateEntry<bool>("Random AP Round (T-64BV 1988)", false);
+            t64bv_random_ammo_pool_1988 = cfg.CreateEntry<List<string>>("Random AP Round Pool (T-64BV 1988)", random_ammo_pool);
+            t64bv_random_ammo_pool_1988.Comment = "3BM26, 3BM32, 3BM42, 3BM46";
 
             zoom_snapper = cfg.CreateEntry<bool>("Quick Zoom Switch (T-64BV)", true);
             zoom_snapper.Comment = "Press middle mouse to instantly switch between low and high magnification on the daysight";
         }
 
-        public static bool WillConvertToT64BV(Vehicle vic)
-        {
-            if (vic == null)
-                return false;
-
-            if (conversionDecisions.TryGetValue(vic, out ConversionDecision cached))
-                return cached.WillConvert;
-
-            if (t64bv_patch == null || kontakt1 == null || !t64bv_patch.Value || !kontakt1.Value || vic.GetComponent<AlreadyConverted>() != null || string.IsNullOrEmpty(vic.FriendlyName) || !vic.FriendlyName.Contains("T-64B"))
-                return false;
-
-            int conversion_chance = 0;
-
-            if (vic.FriendlyName.Contains("T-64B1 obr.1981"))
-                conversion_chance = t64b1_1981_chance.Value;
-            else if (vic.FriendlyName.Contains("T-64B1 obr.1984"))
-                conversion_chance = t64b1_1984_chance.Value;
-            else if (vic.FriendlyName.Contains("T-64B obr.1981"))
-                conversion_chance = t64b_1981_chance.Value;
-            else if (vic.FriendlyName.Contains("T-64B obr.1984"))
-                conversion_chance = t64b_1984_chance.Value;
-
-            bool willConvert = UnityEngine.Random.Range(0, 100) < conversion_chance;
-
-            conversionDecisions.Add(vic, new ConversionDecision
-            {WillConvert = willConvert});
-
-            return willConvert;
-        }
-
         public static IEnumerator Convert(GameState _)
         {
+            Mod.vics = UnityEngine.Object.FindObjectsByType<Vehicle>(FindObjectsSortMode.None);
+
             foreach (Vehicle vic in Mod.vics)
             {
                 if (vic == null) continue;
 
-                GameObject vic_go = vic.gameObject;
-                if (!vic.FriendlyName.Contains("T-64B")) continue;
-                if (vic_go.GetComponent<AlreadyConverted>() != null)
-                {
-                    // MelonLogger.Msg("T64BV skipped " + vic.FriendlyName + " because AlreadyConverted exists");
+                if (t64bv_patch == null || !t64bv_patch.Value)
                     continue;
-                }
 
-                bool converted_to_t64bv = WillConvertToT64BV(vic);
-                if (converted_to_t64bv)
+                if (!TryGetVariant(vic.UniqueName, out BvVariant variant))
+                    continue;
+
+                GameObject vic_go = vic.gameObject;
+                if (vic_go.GetComponent<AlreadyConverted>() != null)
+                    continue;
+
+                vic_go.AddComponent<AlreadyConverted>();
+                vic._friendlyName = variant.FriendlyName;
+
+                ArmyBinocularLookupFix.EnsureSovietEntries(vic.FriendlyName);
+
                 {
-                    vic_go.AddComponent<AlreadyConverted>();
-
-                    if (vic.FriendlyName.Contains("T-64B1"))
-                    {
-                        vic._friendlyName = "T-64B1V";
-                    }
-                    else
-                    {
-                        vic._friendlyName = "T-64BV";
-                    }
-
                     Transform hull = vic.transform.Find("---T64A_MESH---/HULL");
                     Transform turret = vic.transform.Find("---T64A_MESH---/HULL/TURRET");
                     Transform markers = turret.transform.Find("T64A_markings");
@@ -265,28 +349,26 @@ namespace Fulda1989
                             for (int i = 0; i < smoke_manager._smokeSlots.Length; i++)
                             {
                                 VehicleSmokeManager.SmokeSlot slot = smoke_manager._smokeSlots[i];
-
                                 Transform smoke_cap = new_smokes[i];
 
                                 slot.DisplayBone = smoke_cap;
-
                                 slot.SpawnLocation.transform.SetParent(smoke_cap);
                                 slot.SpawnLocation.transform.position = smoke_cap.GetComponent<Renderer>().bounds.center;
                             }
                         }
                         else
                         {
-                            MelonLogger.Msg("FAILED TO FIND TURRET K1");
+                            // MelonLogger.Msg("FAILED TO FIND TURRET K1");
                         }
                     }
                     else
                     {
-                        MelonLogger.Msg("FAILED TO FIND SMOKE MANAGER");
+                        // MelonLogger.Msg("FAILED TO FIND SMOKE MANAGER");
                     }
 
                     GameObject.Destroy(k1_full);
 
-                    Transform old_smokes = turret.Find("T64B_smoke");
+                    Transform old_smokes = turret.transform.Find("T64B_smoke");
                     old_smokes?.gameObject.SetActive(false);
 
                     Transform camonet1 = vic.transform.Find("---T64A_MESH---/HULL/t64a hull net");
@@ -305,48 +387,11 @@ namespace Fulda1989
                     }
                 }
 
-                if (!converted_to_t64bv)
-                {
-                    continue;
-                }
-
-                bool use_thermal = t64bv_thermals.Value;
-
-                if (converted_to_t64bv)
-                {
-                    use_thermal = t64bv_thermals.Value;
-                }
-                if (converted_to_t64bv && t64bv_thermals.Value)
-                {
-                    if (thermals_qualityt64bv.Value.Equals("Low", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (vic.FriendlyName.Contains("T-64B1V"))
-                            vic._friendlyName = "T-64BV1 obr.1987";
-                        else
-                            vic._friendlyName = "T-64BV obr.1987";
-                    }
-                    else if (thermals_qualityt64bv.Value.Equals("High", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (vic.FriendlyName.Contains("T-64B1V"))
-                            vic._friendlyName = "T-64BV1 obr.1989";
-                        else
-                            vic._friendlyName = "T-64BV obr.1989";
-                    }
-                }
-
-                ArmyBinocularLookupFix.EnsureSovietEntries(vic.FriendlyName);
-
                 WeaponSystem weapon = vic.GetComponent<WeaponsManager>().Weapons[0].Weapon;
                 LoadoutManager loadout_manager = vic.GetComponent<LoadoutManager>();
 
-                string ammo_str = t64bv_ammo_type.Value;
-
-                if (converted_to_t64bv)
-                {
-                    int ammo_rand_bv = UnityEngine.Random.Range(0, t64bv_random_ammo_pool.Value.Count);
-
-                    ammo_str = t64bv_random_ammo.Value ? t64bv_random_ammo_pool.Value.ElementAt(ammo_rand_bv) : t64bv_ammo_type.Value;
-                }
+                string ammo_str = ResolveApRound(variant);
+                string heat_str = ResolveHeatRound(variant);
 
                 FireControlSystem fcs = vic.GetComponentInChildren<FireControlSystem>();
                 UsableOptic day_optic = Util.GetDayOptic(fcs);
@@ -356,7 +401,7 @@ namespace Fulda1989
                 {
                     loadout_manager.LoadedAmmoList.AmmoClips[0] = Ammo_125mm.ap[ammo_str];
 
-                    if (converted_to_t64bv && t64bv_heat_type.Value == "3BK18M")
+                    if (heat_str == "3BK18M")
                         loadout_manager.LoadedAmmoList.AmmoClips[1] = SharedAssets.clip_codex_3bk18m;
 
                     for (int i = 0; i < loadout_manager.RackLoadouts.Length; i++)
@@ -378,71 +423,31 @@ namespace Fulda1989
                 if (zoom_snapper.Value)
                     day_optic.gameObject.AddComponent<DigitalZoomSnapper>();
 
-                try
-                {
-                    if (ammo_str != "3BM15")
-                        loadout_manager.LoadedAmmoList.AmmoClips[0] = Ammo_125mm.ap[ammo_str];
-
-                    for (int i = 0; i < loadout_manager.RackLoadouts.Length; i++)
-                    {
-                        GHPC.Weapons.AmmoRack rack = loadout_manager.RackLoadouts[i].Rack;
-                        Util.EmptyRack(rack);
-                    }
-
-                    loadout_manager.SpawnCurrentLoadout();
-                    weapon.Feed.AmmoTypeInBreech = null;
-                    weapon.Feed.Start();
-                    loadout_manager.RegisterAllBallistics();
-                }
-                catch (Exception)
-                {
-                    MelonLogger.Msg("Loading default ammo for " + vic.FriendlyName);
-                }
-
                 Transform canvas = vic.transform.Find("---T64A_MESH---/HULL/TURRET/Main gun/---MAIN GUN SCRIPTS---/2A46/1G42 gunner's sight/GPS/1G42 Canvas/GameObject");
                 canvas.Find("ammo text APFSDS (TMP)").gameObject.SetActive(true);
 
                 vic.AimablePlatforms[3].transform.Find("optic cover parent").gameObject.SetActive(false);
 
-                if (use_thermal)
+                if (variant.HasAgava)
                 {
-                    PactThermal.Add(night_optic, converted_to_t64bv ? thermals_qualityt64bv.Value.ToLower() : thermals_qualityt64bv.Value.ToLower());
+                    PactThermal.Add(night_optic, AgavaPreset);
 
                     night_optic.Alignment = OpticAlignment.BoresightStabilized;
                     night_optic.RotateAzimuth = true;
+
+                    AiSpotterUtil.ApplyGen1ThermalNightFighting(vic);
+
+                    LampType lampType = LampType.GunnerSpotlight;
+                    EquipmentManager equipmentManager = vic._equipmentManager;
+                    if (equipmentManager != null)
+                    {
+                        equipmentManager.lampsDict.Remove(lampType);
+                        equipmentManager.AllLamps = equipmentManager.AllLamps.Where(o => o.Type != lampType).ToArray();
+                    }
                 }
+
                 yield return null;
-            }
-        }
-
-        [HarmonyPatch]
-        public static class PILT64BCompatibilityPatch
-        {
-            static bool Prepare()
-            {
-                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B");
-                return type != null && AccessTools.Method(type, "HandleConversion") != null;
-            }
-
-            static MethodBase TargetMethod()
-            {
-                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B");
-                return AccessTools.Method(type, "HandleConversion");
-            }
-
-            static bool Prefix(Vehicle vic)
-            {
-                if (vic == null)
-                    return true;
-
-                if (T64BV.WillConvertToT64BV(vic))
-                {
-                    MelonLogger.Msg($"[T64BV] PIL compatibility shield: reserving {vic.FriendlyName} for Fulda T-64BV conversion.");
-
-                    return false;
-                }
-
-                return true;
+                ApplyFiveLayerUfpArmour(vic);
             }
         }
 
@@ -469,6 +474,54 @@ namespace Fulda1989
             Util.SetupFLIRShaders(T64Assets.t64bv_full);
 
             MelonLogger.Msg("Loaded T64BV ERA asset successfully");
+        }
+
+        [HarmonyPatch]
+        public static class PILT64BCompatibilityPatch
+        {
+            static bool Prepare()
+            {
+                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B");
+                return type != null && AccessTools.Method(type, "HandleConversion") != null;
+            }
+
+            static MethodBase TargetMethod()
+            {
+                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B");
+                return AccessTools.Method(type, "HandleConversion");
+            }
+
+            static bool Prefix(Vehicle vic)
+            {
+                if (vic == null)
+                    return true;
+
+                return !IsStandaloneSpawn(vic);
+            }
+        }
+
+        [HarmonyPatch]
+        public static class PILT64B1CompatibilityPatch
+        {
+            static bool Prepare()
+            {
+                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B1");
+                return type != null && AccessTools.Method(type, "HandleConversion") != null;
+            }
+
+            static MethodBase TargetMethod()
+            {
+                Type type = AccessTools.TypeByName("PactIncreasedLethality.T64B1");
+                return AccessTools.Method(type, "HandleConversion");
+            }
+
+            static bool Prefix(Vehicle vic)
+            {
+                if (vic == null)
+                    return true;
+
+                return !IsStandaloneSpawn(vic);
+            }
         }
 
         public static void Init()
