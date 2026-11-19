@@ -16,13 +16,15 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Mod), "Fulda Expansion Pack [Demon From the West Update]", "1.5.0", "ZironTheDerg + The Fulda Team")]
+[assembly: MelonInfo(typeof(Mod), "Fulda Expansion Pack [Modernisation Effort - PART 1]", "1.5.2", "ZironTheDerg + The Fulda Team")]
 [assembly: MelonGame("Radian Simulations LLC", "GHPC")]
 
 namespace Fulda1989
 {
     public class Mod : MelonMod
     {
+        internal const string MelonCategoryId = "Fulda 1989 | Expansion Pack";
+
         private static ModuleManager module_manager;
         internal static Vehicle[] vics;
         internal static MelonPreferences_Category cfg;
@@ -49,17 +51,16 @@ namespace Fulda1989
         public override void OnInitializeMelon()
         {
             module_manager = new ModuleManager("Fulda1989");
-            cfg = MelonPreferences.CreateCategory("Fulda 1989 | Expansion Pack");
+            cfg = MelonPreferences.CreateCategory(MelonCategoryId);
             FailRateSystem.Config(cfg);
             T64AV.Config(cfg);
             T64BV.Config(cfg);
             M60ERA.Config(cfg);
             BMP2D.Config(cfg);
             LEO2A4.Config(cfg);
+            LEO2A4_86.Config(cfg);
             LEO2A4_140.Config(cfg);
             LEO2K.Config(cfg);
-
-            MelonPreferences.Save();
 
             new HarmonyLib.Harmony("Fulda1989.RH202Ammo").PatchAll();
 
@@ -87,6 +88,7 @@ namespace Fulda1989
             module_manager.Add("M60ERA", new M60ERA());
             module_manager.Add("LEO2A4_140", new LEO2A4_140());
             module_manager.Add("LEO2A4", new LEO2A4());
+            module_manager.Add("LEO2A4_86", new LEO2A4_86());
             module_manager.Add("LEO2K", new LEO2K());
             module_manager.Add("BMP-2D", new BMP2D());
             module_manager.Add("SuperFCS", new SuperFCS());
@@ -99,12 +101,15 @@ namespace Fulda1989
 
         public IEnumerator MissionUnitsLoaded(GameState _)
         {
+            if (Util.ShouldSkipVehicleConvert())
+                yield break;
+
             FailRateSystem.ResetForNewMission();
             UnitSpawner.Instance.SpawnUnit("LEO2K", new GHPC.Mission.Data.UnitMetaData()
                 {
                     Name = "LEO2K",
                     Allegiance = Faction.Neutral,
-                    Position = new Vector3(1231.95f, 23.5001f, 1496.691f),
+                    Position = new Vector3(1228.898f, 23.5087f, 1516.342f),
                     Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
                     UnitType = UnitType.GroundVehicle,
                 }
@@ -118,11 +123,47 @@ namespace Fulda1989
                     UnitType = UnitType.GroundVehicle,
                 }
             );
+            UnitSpawner.Instance.SpawnUnit("LEO2A4_86", new GHPC.Mission.Data.UnitMetaData()
+                {
+                    Name = "LEO2A4_86",
+                    Allegiance = Faction.Neutral,
+                    Position = new Vector3(1246.271f, 23.6095f, 1477.414f),
+                    Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
+                    UnitType = UnitType.GroundVehicle,
+                }
+            );
             UnitSpawner.Instance.SpawnUnit("LEO2A4_140", new GHPC.Mission.Data.UnitMetaData()
                 {
                     Name = "LEO2A4_140",
                     Allegiance = Faction.Neutral,
                     Position = new Vector3(1239.392f, 23.5152f, 1532.086f),
+                    Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
+                    UnitType = UnitType.GroundVehicle,
+                }
+            );
+            UnitSpawner.Instance.SpawnUnit("T64AV", new GHPC.Mission.Data.UnitMetaData()
+                {
+                    Name = "T64AV",
+                    Allegiance = Faction.Neutral,
+                    Position = new Vector3(1231.894f, 23.6437f, 1551.609f),
+                    Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
+                    UnitType = UnitType.GroundVehicle,
+                }
+            );
+            UnitSpawner.Instance.SpawnUnit("T64BV_1988", new GHPC.Mission.Data.UnitMetaData()
+                {
+                    Name = "T64BV_1988",
+                    Allegiance = Faction.Neutral,
+                    Position = new Vector3(1219.982f, 23.3118f, 1586.291f),
+                    Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
+                    UnitType = UnitType.GroundVehicle,
+                }
+            );
+            UnitSpawner.Instance.SpawnUnit("T64BV", new GHPC.Mission.Data.UnitMetaData()
+                {
+                    Name = "T64BV",
+                    Allegiance = Faction.Neutral,
+                    Position = new Vector3(1231.222f, 23.4277f, 1561.181f),
                     Rotation = Quaternion.Euler(359.3389f, 263.3187f, 359.9356f),
                     UnitType = UnitType.GroundVehicle,
                 }
@@ -199,6 +240,7 @@ namespace Fulda1989
                 BMP2D.Init();
                 LEO2A4_140.Init();
                 LEO2A4.Init();
+                LEO2A4_86.Init();
                 LEO2K.Init();
 
                 valid_scene_count = 0;
