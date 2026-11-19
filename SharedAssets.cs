@@ -6,6 +6,7 @@ using NWH.VehiclePhysics;
 using Reticle;
 using TMPro;
 using UnityEngine;
+using FuldaExpansion1989.Sights;
 using ModUtil;
 using VanillaAssetUtil.AssetUtil;
 
@@ -29,6 +30,7 @@ namespace Fulda1989
 
         internal static GameObject crt_shock_go;
         internal static TMP_FontAsset tpd_etch_sdf;
+        internal static TMP_FontAsset leo2_segment7_sdf;
 
         internal static Material green_flir_mat;
         internal static GameObject flir_post_green;
@@ -55,14 +57,26 @@ namespace Fulda1989
             ammo_kobra = codex_scriptables.Where(o => o.name == "ammo_9M112M").FirstOrDefault().AmmoType;
 
             tpd_etch_sdf = Resources.FindObjectsOfTypeAll<TMP_FontAsset>().Where(o => o.name == "TPD_Etch SDF").FirstOrDefault();
+            leo2_segment7_sdf = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
+                .Where(o => o.name == "Segment7Standard SDF")
+                .FirstOrDefault();
         }
 
         public override void LoadDynamicAssets()
         {
+            if (leo2_segment7_sdf == null)
+            {
+                AssetUtilApi.LoadVanillaVehicle("LEO2A3", temp: true);
+                leo2_segment7_sdf = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
+                    .Where(o => o.name == "Segment7Standard SDF")
+                    .FirstOrDefault();
+            }
+
             Vehicle m1ip = AssetUtilApi.LoadVanillaVehicle("M1IP", temp: true);
             Transform m1ip_flir = m1ip.transform.Find("Turret Scripts/GPS/FLIR");
             abrams_vic_controller = m1ip.GetComponent<VehicleController>();
             m1ip_range_canvas = m1ip.transform.Find("Turret Scripts/GPS/Optic/Abrams GPS canvas").gameObject;
+            LEO2KCustomGunnerHud.WarmTemplate();
             crt_shock_go = m1ip_flir.Find("Scanline FOV change").gameObject;
             flir_post_green = m1ip_flir.Find("FLIR Post Processing - Green").gameObject;
             green_flir_mat = m1ip_flir.GetComponent<CameraSlot>().FLIRBlitMaterialOverride;
