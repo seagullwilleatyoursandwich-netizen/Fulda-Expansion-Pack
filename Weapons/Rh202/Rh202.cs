@@ -1114,6 +1114,11 @@ namespace Fulda1989
             EndSterilizedRh202Install(state);
             Rh202Diagnostics.QueueSpawn(vic, rh202Fcs);
 
+            if (variant == Leopard2KVariant.KA2)
+                LEO2KCustomGunnerHud.Apply(optic, null, rh202Fcs);
+            else if (variant == Leopard2KVariant.KA3)
+                LEO2KCustomGunnerHud.Apply(optic, nightOptic, rh202Fcs);
+
             FinalizeGunnerCameraIntegration(state);
         }
 
