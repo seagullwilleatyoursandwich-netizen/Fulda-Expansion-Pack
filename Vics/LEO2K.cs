@@ -1,4 +1,4 @@
-﻿using FuldaExpansion1989.Sights;
+using FuldaExpansion1989.Sights;
 using GHPC;
 using GHPC.AI;
 using GHPC.AI.Targeting;
@@ -46,68 +46,6 @@ namespace Fulda1989
     }
     public class AARAlreadyMoved : MonoBehaviour
     {
-    }
-    public class RH202ServoFix : MonoBehaviour
-    {
-        public AimablePlatform Traverse;
-        public Transform TraverseTransform;
-
-        private static readonly FieldInfo f_useWorldSpace = typeof(AimablePlatform).GetField("_useWorldSpace",BindingFlags.Instance |BindingFlags.NonPublic);
-
-        private static readonly FieldInfo f_goalAimVector =typeof(AimablePlatform).GetField("_goalAimVector",BindingFlags.Instance |BindingFlags.NonPublic);
-
-        private void OnEnable()
-        {
-            Camera.onPreCull -= HandlePreCull;
-            Camera.onPreCull += HandlePreCull;
-        }
-
-        private void OnDisable()
-        {
-            Camera.onPreCull -= HandlePreCull;
-        }
-
-        private void LateUpdate()
-        {
-            Servo();
-        }
-
-        private void HandlePreCull(Camera cam)
-        {
-            if (cam != CameraManager.MainCam)return;
-            Servo();
-        }
-
-        private void Servo()
-        {
-            if (Traverse == null || TraverseTransform == null)
-                return;
-
-            if (f_useWorldSpace == null || f_goalAimVector == null)
-                return;
-
-            bool useWorldSpace = (bool)f_useWorldSpace.GetValue(Traverse);
-
-            if (!useWorldSpace)
-                return;
-
-            Vector3 aim = (Vector3)f_goalAimVector.GetValue(Traverse);
-
-            if (aim.sqrMagnitude < 0.0625f)
-                return;
-
-            Vector3 up = TraverseTransform.parent != null ? TraverseTransform.parent.up : Vector3.up;
-
-            aim = Vector3.ProjectOnPlane(aim, up);
-
-            if (aim.sqrMagnitude < 0.0625f) return;
-            aim.Normalize();
-
-            Traverse.SetAimVector(aim,true,true,false,false);
-            Traverse.ForceAimVectorNow(aim);
-
-            TraverseTransform.rotation = Traverse.Rotation;
-        }
     }
     public class LEO2K : Module
     {
@@ -539,12 +477,6 @@ namespace Fulda1989
 
                 }
 
-                //for (int i = 0; i < loadoutManager.RackLoadouts.Length; i++)
-                //{
-                //    loadoutManager.RackLoadouts[i].FixedChoices = null;
-                //    Util.EmptyRack(loadoutManager.RackLoadouts[i].Rack);
-                //}
-
 
                 // CONVERT 120MM MAIN GUN
                 WeaponsManager weapons_manager = vic.GetComponent<WeaponsManager>();
@@ -763,6 +695,7 @@ namespace Fulda1989
                             day_optic.slot.LinkedNightSight.PairedOptic.RotateAzimuth = true;
                             day_optic.slot.LinkedNightSight.PairedOptic.Alignment = OpticAlignment.BoresightStabilized;
                             LEO2KThermals.Add(day_optic.slot.LinkedNightSight.PairedOptic, LEO2KThermals.ThermalVariant.Leopard2K1);
+                            AiSpotterUtil.ApplyGen1ThermalNightFighting(vic);
                             break;
 
                         case "Leopard 2KA2 'Falke'":
@@ -786,6 +719,7 @@ namespace Fulda1989
                             day_optic.slot.LinkedNightSight.PairedOptic.RotateAzimuth = true;
                             day_optic.slot.LinkedNightSight.PairedOptic.Alignment = OpticAlignment.BoresightStabilized;
                             LEO2KThermals.Add(day_optic.slot.LinkedNightSight.PairedOptic, LEO2KThermals.ThermalVariant.Leopard2K2);
+                            AiSpotterUtil.ApplyGen1ThermalNightFighting(vic);
                             break;
 
                         case "Leopard 2KA3 'Adler'":
@@ -810,12 +744,69 @@ namespace Fulda1989
                             day_optic.slot.LinkedNightSight.PairedOptic.RotateAzimuth = true;
                             day_optic.slot.LinkedNightSight.PairedOptic.Alignment = OpticAlignment.BoresightStabilized;
                             LEO2KThermals.Add(day_optic.slot.LinkedNightSight.PairedOptic, LEO2KThermals.ThermalVariant.Leopard2K3);
+                            AiSpotterUtil.ApplyGen1ThermalNightFighting(vic);
                             break;
+                    }
+
+                    if (vic.FriendlyName != "Leopard 2K" && day_optic != null)
+                    {
+                        night_optic = day_optic.slot?.LinkedNightSight?.PairedOptic ?? night_optic;
+                        LEO2KCustomGunnerHud.Apply(day_optic, night_optic, fcs);
                     }
                 }
 
                 if (rh202Gun != null)
                     RH202.Setup(vic, rh202Gun, rh202Variant);
+
+                if (vic.FriendlyName != "Leopard 2K")
+                {
+                    Transform periR12 = null;
+                    if (turret != null)
+                        periR12 = turret.Find("1A3 mantlet/--Gun Scripts--/PERI-R12");
+                    if (periR12 == null && mantlet != null)
+                    {
+                        foreach (Transform t in mantlet.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (t.name == "PERI-R12")
+                            {
+                                periR12 = t;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (periR12 != null)
+                    {
+                        foreach (Transform t in periR12.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (!string.Equals(t.name, "peri_azimuth", System.StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            foreach (Renderer r in t.GetComponents<Renderer>())
+                                r.enabled = false;
+
+                            foreach (Transform child in t.GetComponentsInChildren<Transform>(true))
+                            {
+                                if (child == t)
+                                    continue;
+
+                                foreach (Renderer r in child.GetComponents<Renderer>())
+                                    r.enabled = false;
+
+                                Canvas canvas = child.GetComponent<Canvas>();
+                                if (canvas != null)
+                                    canvas.enabled = false;
+
+                                child.gameObject.SetActive(false);
+                            }
+
+                            if (t.GetComponent<Leo2KPeriAzimuthVisualOff>() == null)
+                                t.gameObject.AddComponent<Leo2KPeriAzimuthVisualOff>();
+
+                            break;
+                        }
+                    }
+                }
 
                 // Disable unecessary 1A4 items
                 GHPC.Equipment.Lamps.LampType lamp_type = GHPC.Equipment.Lamps.LampType.GunnerSpotlight;
@@ -2572,6 +2563,29 @@ namespace Fulda1989
 
             // GameReady: Marder donor finishes loading on PlayerReady first.
             StateController.RunOrDefer(GameState.GameReady, new GameStateEventHandler(Convert), GameStatePriority.Medium);
+        }
+        sealed class Leo2KPeriAzimuthVisualOff : MonoBehaviour
+        {
+            void LateUpdate()
+            {
+                foreach (Renderer r in GetComponents<Renderer>())
+                    r.enabled = false;
+
+                foreach (Transform child in transform)
+                {
+                    if (!child.gameObject.activeSelf)
+                        continue;
+
+                    foreach (Renderer r in child.GetComponents<Renderer>())
+                        r.enabled = false;
+
+                    Canvas canvas = child.GetComponent<Canvas>();
+                    if (canvas != null)
+                        canvas.enabled = false;
+
+                    child.gameObject.SetActive(false);
+                }
+            }
         }
     }
 }
