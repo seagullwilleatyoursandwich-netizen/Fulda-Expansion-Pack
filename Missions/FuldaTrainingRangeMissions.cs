@@ -31,8 +31,18 @@ namespace Fulda1989.Missions
         public string BlueVictoryMessage;
         public string FuldaFlexAssetName;
         public string LogLabel;
+        // Vanilla flex mission to clone (default: Leo 2 range layout).
+        public string SourceFlexAssetName;
+        public Faction VictoryFaction = Faction.Blue;
 
         public bool IsMissionEnabled => Enabled && PatchEnabled != null && PatchEnabled();
+
+        public string ResolveSourceFlexAssetName()
+        {
+            return string.IsNullOrEmpty(SourceFlexAssetName)
+                ? FuldaTrainingRangeMissions.DefaultLeo2SourceFlexAssetName
+                : SourceFlexAssetName;
+        }
     }
     public static class FuldaNpzk140TrainingRangeConfig
     {
@@ -43,7 +53,7 @@ namespace Fulda1989.Missions
             MissionTitle = "NPzK-140 Training Range",
             Debrief =
 @"You've been selected to test an experimental MBT; 
-x1 'NPzK-140' at Grafenwöhr Range. 
+x1 'NPzK-140' at Grafenwoehr Range. 
 
 It is being rolled out in scarce numbers by the Bundeswehr, it is equipped with less armour but a significantly more potent main cannon of the 140mm caliber type.
 You will be shooting elite soviet targets, ranging from T-64, T-72 and T-80 units.
@@ -111,15 +121,51 @@ The Leopard 2KA2 'Falke' and Leopard 2KA3 'Adler' receive the best fire control 
         };
     }
 
+    public static class FuldaT64Bv1988TrainingRangeConfig
+    {
+        public static readonly FuldaTrainingRangeMissionDefinition Definition = new FuldaTrainingRangeMissionDefinition
+        {
+            PatchEnabled = () => T64BV.PatchEnabled,
+            Enabled = true,
+            MissionTitle = "T-64BV obr.1988 Training Range",
+            Debrief =
+@"You've been issued a T-64BV obr.1988 with the Agava thermal imager for range qualification at Grafenwoehr.
+
+Engage NATO stand-ins across the layout. Pick a **night** time option in mission config to practice the Agava sight and thermal target identification.
+
+General guide:
+
+The T-64BV obr.1988 carries Kontakt-1 ERA and the Agava Gen-1 thermal channel on the night sight; Agava does not have multiple magnification modes and has undesirable quality, 
+but its nightfighting capability is still vastly superior compared to the IR spotlight system.
+Use the day sight for long-range daylight work; switch to the thermal channel after dusk or under overcast.
+APFSDS is your primary anti-armour loadout. HEAT remains useful against lighter armour and soft targets at closer range.
+
+You can expect OPFOR on this range to be M1 Abrams and Marder 1A2 in place of the usual M60A1 and M113's.",
+            PlayerUnitKey = FuldaStandaloneRegistrations.T64Bv1988Unit,
+            PlayerVehicleSourceKeys = new[] { "T80B" },
+            SourceFlexAssetName = "TR01_T80B_Range",
+            EnemyUnitSwaps = new[]
+            {
+                ("M60A1RISEP", "M1"),
+                ("M113", "MARDER1A2"),
+            },
+            BlueVictoryMessage = "You have completed the T-64BV obr.1988 training range.",
+            VictoryFaction = Faction.Red,
+            FuldaFlexAssetName = "TR01_T64BV_1988_Range_Fulda",
+            LogLabel = "T-64BV obr.1988",
+        };
+    }
+
     public static class FuldaTrainingRangeMissions
     {
-        public const string SourceFlexAssetName = "TR01_LEO2_Range";
+        public const string DefaultLeo2SourceFlexAssetName = "TR01_LEO2_Range";
         public const string TrainingTheaterKey = "FG85_TR01";
 
         private static readonly FuldaTrainingRangeMissionDefinition[] AllDefinitions =
         {
             FuldaNpzk140TrainingRangeConfig.Definition,
             FuldaLeo2KTrainingRangeConfig.Definition,
+            FuldaT64Bv1988TrainingRangeConfig.Definition,
         };
 
         private sealed class RegisteredRangeMission
@@ -272,26 +318,26 @@ The Leopard 2KA2 'Falke' and Leopard 2KA3 'Adler' receive the best fire control 
                     continue;
                 }
 
-                MissionMetaData leoTemplate = FindLeo2RangeMission(trainingTheater);
-                if (leoTemplate == null)
+                MissionMetaData templateMission = FindTemplateRangeMission(trainingTheater, def);
+                if (templateMission == null)
                 {
-                    MelonLogger.Warning($"[FULDA RANGE] Could not find {SourceFlexAssetName} template mission ({def.LogLabel}).");
+                    MelonLogger.Warning($"[FULDA RANGE] Could not find {def.ResolveSourceFlexAssetName()} template mission ({def.LogLabel}).");
                     continue;
                 }
 
-                if (leoTemplate.FlexMissionData == null)
+                if (templateMission.FlexMissionData == null)
                 {
-                    MelonLogger.Warning($"[FULDA RANGE] Leo 2 training mission has no flex metadata ({def.LogLabel}).");
+                    MelonLogger.Warning($"[FULDA RANGE] Template mission has no flex metadata ({def.LogLabel}).");
                     continue;
                 }
 
-                DynamicMissionMetadataScriptable flexClone = UnityEngine.Object.Instantiate(leoTemplate.FlexMissionData);
+                DynamicMissionMetadataScriptable flexClone = UnityEngine.Object.Instantiate(templateMission.FlexMissionData);
                 flexClone.name = def.FuldaFlexAssetName;
                 flexClone.hideFlags = HideFlags.DontUnloadUnusedAsset;
 
                 ApplyFlexUnitSwaps(flexClone, def);
 
-                MissionMetaData missionClone = CloneMissionMeta(leoTemplate, flexClone, def);
+                MissionMetaData missionClone = CloneMissionMeta(templateMission, flexClone, def);
 
                 List<MissionMetaData> missions = trainingTheater.Missions != null ? trainingTheater.Missions.ToList() : new List<MissionMetaData>();
 
@@ -402,33 +448,43 @@ The Leopard 2KA2 'Falke' and Leopard 2KA3 'Adler' receive the best fire control 
                 if (action == null || !action.Win)
                     continue;
 
-                if (action.Faction != Faction.Blue)
+                if (action.Faction != def.VictoryFaction)
                     continue;
 
                 action.CustomMessage = message;
             }
         }
 
-        private static MissionMetaData FindLeo2RangeMission(MissionTheaterScriptable theater)
+        private static MissionMetaData FindTemplateRangeMission(MissionTheaterScriptable theater, FuldaTrainingRangeMissionDefinition def)
         {
-            if (theater.Missions == null)
+            if (theater.Missions == null || def == null)
                 return null;
+
+            string sourceFlexAssetName = def.ResolveSourceFlexAssetName();
 
             foreach (MissionMetaData mission in theater.Missions)
             {
                 if (mission?.FlexMissionData == null)
                     continue;
 
-                if (string.Equals(mission.FlexMissionData.name, SourceFlexAssetName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(mission.FlexMissionData.name, sourceFlexAssetName, StringComparison.OrdinalIgnoreCase))
                     return mission;
 
-                if (mission.MissionName != null && mission.MissionName.IndexOf("Leopard 2", StringComparison.OrdinalIgnoreCase) >= 0 && mission.MissionName.IndexOf("Range", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (mission.MissionName == null || mission.MissionName.IndexOf("Range", StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+
+                if (string.Equals(sourceFlexAssetName, DefaultLeo2SourceFlexAssetName, StringComparison.OrdinalIgnoreCase)
+                    && mission.MissionName.IndexOf("Leopard 2", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return mission;
+
+                if (sourceFlexAssetName.IndexOf("T80", StringComparison.OrdinalIgnoreCase) >= 0
+                    && mission.MissionName.IndexOf("T-80", StringComparison.OrdinalIgnoreCase) >= 0)
                     return mission;
             }
 
             DynamicMissionMetadataScriptable flex = Resources
                 .FindObjectsOfTypeAll<DynamicMissionMetadataScriptable>()
-                .FirstOrDefault(f => f != null && string.Equals(f.name, SourceFlexAssetName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(f => f != null && string.Equals(f.name, sourceFlexAssetName, StringComparison.OrdinalIgnoreCase));
 
             if (flex == null)
                 return null;
