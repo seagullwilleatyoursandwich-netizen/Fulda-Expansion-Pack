@@ -14,7 +14,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using System.Runtime.CompilerServices;
 using Module = ModUtil.Module;
 using HarmonyLib;
 
@@ -25,25 +24,23 @@ namespace Fulda1989
         static MelonPreferences_Entry<bool> t64av_patch;
         static MelonPreferences_Entry<string> t64av_ammo_type;
         static MelonPreferences_Entry<string> t64av_heat_type;
-        static MelonPreferences_Entry<bool> kontakt1;
-        static MelonPreferences_Entry<int> t64a_1981_av_chance;
-        static MelonPreferences_Entry<int> t64a_1983_av_chance;
-        static MelonPreferences_Entry<int> t64a_1984_av_chance;
+        static MelonPreferences_Entry<bool> t64av_random_ammo;
+        static MelonPreferences_Entry<List<string>> t64av_random_ammo_pool;
 
-        private sealed class ConversionDecision
-        {
-            public bool WillConvert;
-        }
+        public static bool PatchEnabled => t64av_patch != null && t64av_patch.Value;
 
-        private static readonly ConditionalWeakTable<Vehicle, ConversionDecision> conversionDecisions = new ConditionalWeakTable<Vehicle, ConversionDecision>();
         public static void Config(MelonPreferences_Category cfg)
         {
-            t64av_patch = cfg.CreateEntry<bool>("T-64AV Patch", true);
+            var randomApPool = new List<string>()
+            {
+                "3BM26",
+                "3BM32",
+                "3BM42",
+                "3BM46"
+            };
 
-            kontakt1 = cfg.CreateEntry<bool>("Kontakt-1 (T-64AV)", true);
-            t64a_1981_av_chance = cfg.CreateEntry<int>("T-64A 1981 -> T-64AV Chance (%)", 40);
-            t64a_1983_av_chance = cfg.CreateEntry<int>("T-64A 1983 -> T-64AV Chance (%)", 60);
-            t64a_1984_av_chance = cfg.CreateEntry<int>("T-64A 1984 -> T-64AV Chance (%)", 80);
+            t64av_patch = cfg.CreateEntry<bool>("T-64AV Patch", true);
+            t64av_patch.Comment = "Enables stand-alone T-64AV (vehicle customizer and explicit T64AV spawns); Kontakt-1 ERA is always applied.";
 
             t64av_ammo_type = cfg.CreateEntry<string>("AP Round (T-64AV)", "3BM26");
             t64av_ammo_type.Comment = "3BM32, 3BM26 (composite optimized), 3BM42 (composite optimized), 3BM46";
@@ -53,68 +50,53 @@ namespace Fulda1989
             t64av_heat_type.Comment = "3BK18M";
             t64av_heat_type.Description = " ";
 
+            t64av_random_ammo = cfg.CreateEntry<bool>("Random AP Round (T-64AV)", false);
+            t64av_random_ammo_pool = cfg.CreateEntry<List<string>>("Random AP Round Pool (T-64AV)", randomApPool);
+            t64av_random_ammo_pool.Comment = "3BM26, 3BM32, 3BM42, 3BM46";
+
             //has_drozd = cfg.CreateEntry<bool>("Drozd APS (T-64A)", false);
             //has_drozd.Comment = "Intercepts incoming projectiles; covers the frontal arc of the tank relative to where the turret is facing";
         }
 
-        public static bool WillConvertToT64AV(Vehicle vic)
+        public static bool IsStandaloneSpawn(Vehicle vic)
         {
-            if (vic == null)
-                return false;
-
-            // Reuse the same roll when PIL and Fulda both query this vehicle.
-            if (conversionDecisions.TryGetValue(vic, out ConversionDecision cached))
-                return cached.WillConvert;
-
-            if (t64av_patch == null || kontakt1 == null || !t64av_patch.Value || !kontakt1.Value || vic.GetComponent<AlreadyConverted>() != null || string.IsNullOrEmpty(vic.FriendlyName) || !vic.FriendlyName.Contains("T-64A") || vic.FriendlyName.Contains("T-64AV"))
-                return false;
-
-            int conversionChance = 0;
-
-            if (vic.FriendlyName.Contains("T-64A obr.1981"))
-                conversionChance = t64a_1981_av_chance.Value;
-            else if (vic.FriendlyName.Contains("T-64A obr.1983"))
-                conversionChance = t64a_1983_av_chance.Value;
-            else if (vic.FriendlyName.Contains("T-64A obr.1984"))
-                conversionChance = t64a_1984_av_chance.Value;
-
-            bool willConvert = UnityEngine.Random.Range(0, 100) < conversionChance;
-
-            conversionDecisions.Add(vic, new ConversionDecision
-            {WillConvert = willConvert});
-
-            return willConvert;
+            return vic != null
+                && string.Equals(vic.UniqueName, FuldaStandaloneRegistrations.T64AvUnit, StringComparison.OrdinalIgnoreCase);
         }
+
+        static string ResolveApRound()
+        {
+            if (t64av_random_ammo != null && t64av_random_ammo.Value
+                && t64av_random_ammo_pool != null && t64av_random_ammo_pool.Value != null && t64av_random_ammo_pool.Value.Count > 0)
+            {
+                int pick = UnityEngine.Random.Range(0, t64av_random_ammo_pool.Value.Count);
+                return t64av_random_ammo_pool.Value[pick];
+            }
+
+            return t64av_ammo_type != null ? t64av_ammo_type.Value : "3BM26";
+        }
+
         public static IEnumerator Convert(GameState _)
         {
             foreach (Vehicle vic in Mod.vics)
             {
                 if (vic == null) continue;
 
-                GameObject vic_go = vic.gameObject;
-                if (!vic.FriendlyName.Contains("T-64A")) continue;
-                if (vic_go.GetComponent<AlreadyConverted>() != null) continue;
+                if (t64av_patch == null || !t64av_patch.Value)
+                    continue;
 
-                bool converted_to_t64av = WillConvertToT64AV(vic);
-                if (converted_to_t64av)
-                {
-                    vic_go.AddComponent<AlreadyConverted>();
-                    if (vic.FriendlyName.Contains("T-64A obr.1981"))
-                    {
-                        vic._friendlyName = "T-64AV obr.1981";
-                    }
-                    else if (vic.FriendlyName.Contains("T-64A obr.1983"))
-                    {
-                        vic._friendlyName = "T-64AV obr.1983";
-                    }
-                    else if (vic.FriendlyName.Contains("T-64A obr.1984"))
-                    {
-                        vic._friendlyName = "T-64AV obr.1984";
-                    }
-                }
+                if (!IsStandaloneSpawn(vic))
+                    continue;
+
+                GameObject vic_go = vic.gameObject;
+                if (vic_go.GetComponent<AlreadyConverted>() != null)
+                    continue;
+
+                vic_go.AddComponent<AlreadyConverted>();
+                vic._friendlyName = "T-64AV";
+
                 ArmyBinocularLookupFix.EnsureSovietEntries(vic.FriendlyName);
 
-                if (converted_to_t64av)
                 {
                     // ERA CONVERSION (stolen from bv lol)
                     Transform hull = vic.transform.Find("---T64A_MESH---/HULL");
@@ -320,20 +302,13 @@ namespace Fulda1989
                     }
                 }
 
-                if (!converted_to_t64av)
-                {
-                    continue;
-                }
-
                 WeaponSystem weapon = vic.GetComponent<WeaponsManager>().Weapons[0].Weapon;
                 LoadoutManager loadout_manager = vic.GetComponent<LoadoutManager>();
 
                 FireControlSystem fcs = vic.GetComponentInChildren<FireControlSystem>();
                 UsableOptic day_optic = Util.GetDayOptic(fcs);
 
-                string ammo_str = t64av_ammo_type.Value;
-                MelonLogger.Msg($"[T64AV] Config AP round loaded as: {ammo_str}");
-                MelonLogger.Msg($"[T64AV] Config HEAT round loaded as: {t64av_heat_type.Value}");
+                string ammo_str = ResolveApRound();
 
                 try
                 {
@@ -419,24 +394,7 @@ namespace Fulda1989
                 if (vic == null)
                     return true;
 
-                // Already converted by Fulda: never let PIL process it again.
-                if (vic.FriendlyName != null && vic.FriendlyName.Contains("T-64AV"))
-                {
-                    MelonLogger.Msg($"[T64AV] PIL compatibility shield: ignoring already-converted {vic.FriendlyName}.");
-
-                    return false;
-                }
-
-                // Fulda has reserved this vehicle using the shared conversion roll.
-                if (T64AV.WillConvertToT64AV(vic))
-                {
-                    MelonLogger.Msg($"[T64AV] PIL compatibility shield: reserving {vic.FriendlyName} for Fulda conversion.");
-
-                    return false;
-                }
-
-                // Fulda will not convert it, so PIL retains normal behaviour.
-                return true;
+                return !T64AV.IsStandaloneSpawn(vic);
             }
         }
 
