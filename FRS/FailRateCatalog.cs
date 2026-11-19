@@ -40,19 +40,31 @@ namespace Fulda1989.FailRate
 
             foreach (FailRateVehicleRule rule in Rules)
             {
-                if (rule.ChancePercent != null && rule.GuaranteedOriginalsPerPlatoon != null)
-                    continue;
-
                 string verb = rule.Mode == FailRateMode.Upgrade ? "upgrade" : "downgrade";
 
-                string chanceId = $"FRS | {rule.ConfigKey} ({verb} %)";
-                string guaranteedId = $"FRS | {rule.ConfigKey} (guaranteed per platoon)";
+                string chanceId = $"FRS | {rule.AnchorUniqueName} ({verb} %)";
+                string guaranteedId = $"FRS | {rule.AnchorUniqueName} (guaranteed per platoon)";
 
-                rule.ChancePercent = category.GetEntry<int>(chanceId) ?? category.CreateEntry<int>(chanceId, rule.DefaultChancePercent);
-                rule.ChancePercent.Comment = rule.ConfigComment + " Value is 0-100 (percent chance after platoon guarantees are used).";
+                string legacyChanceId = $"FRS | {rule.ConfigKey} ({verb} %)";
+                string legacyGuaranteedId = $"FRS | {rule.ConfigKey} (guaranteed per platoon)";
 
-                rule.GuaranteedOriginalsPerPlatoon = category.GetEntry<int>(guaranteedId) ?? category.CreateEntry<int>(guaranteedId, rule.DefaultGuaranteedOriginalsPerPlatoon);
-                rule.GuaranteedOriginalsPerPlatoon.Comment = "How many vehicles in each platoon always spawn as this type (FRS ignored). Platoon leader is always first among these. 0 = every member can roll fail-rate.";
+                rule.ChancePercent = category.GetEntry<int>(chanceId);
+                if (rule.ChancePercent == null)
+                {
+                    string renameFrom = legacyChanceId != chanceId ? legacyChanceId : null;
+                    rule.ChancePercent = category.CreateEntry<int>(chanceId, rule.DefaultChancePercent, oldIdentifier: renameFrom);
+                }
+
+                rule.ChancePercent.Comment = $"{rule.ConfigKey}: {rule.ConfigComment} Value is 0-100 (percent chance after platoon guarantees are used).";
+
+                rule.GuaranteedOriginalsPerPlatoon = category.GetEntry<int>(guaranteedId);
+                if (rule.GuaranteedOriginalsPerPlatoon == null)
+                {
+                    string renameFrom = legacyGuaranteedId != guaranteedId ? legacyGuaranteedId : null;
+                    rule.GuaranteedOriginalsPerPlatoon = category.CreateEntry<int>(guaranteedId, rule.DefaultGuaranteedOriginalsPerPlatoon, oldIdentifier: renameFrom);
+                }
+
+                rule.GuaranteedOriginalsPerPlatoon.Comment = $"How many {rule.ConfigKey} platoon members (formation order, leader first) always spawn as this type before fail-rate rolls. 0 = every member rolls.";
             }
         }
 
@@ -60,9 +72,15 @@ namespace Fulda1989.FailRate
         {
             AddDowngrade(FuldaStandaloneRegistrations.Leo2A4_140, "NPzK-140", new[] { FuldaStandaloneRegistrations.Leo2A4 }, "Chance NPzK-140 spawns as Leopard 2A4 (1988) instead.", defaultChancePercent: 75, defaultGuaranteedPerPlatoon: 1);
 
-            AddDowngrade(FuldaStandaloneRegistrations.Leo2A4, "Leopard 2A4 (1988)", new[] { "LEO2A3" }, "Chance for a Leopard 2A4 to spawn as an earlier Leopard 2 stand-in (2A3).", defaultChancePercent: 30, defaultGuaranteedPerPlatoon: 1);
+            AddDowngrade(FuldaStandaloneRegistrations.Leo2A4, "Leopard 2A4 (1988)", new[] { FuldaStandaloneRegistrations.Leo2A4_86 }, "Chance Leopard 2A4 (1988) spawns as Leopard 2A4 (1986) instead (no C-tech).", defaultChancePercent: 30, defaultGuaranteedPerPlatoon: 1);
 
-            AddDowngrade(FuldaStandaloneRegistrations.Leo2K, "Leopard 2K", new[] { "LEO1A4", "LEO1A3A3" }, "Chance that Leopard 2K's spawn as Leopard 1A4/1A1A1 stand-ins.", defaultChancePercent: 20, defaultGuaranteedPerPlatoon: 2);
+            AddDowngrade(FuldaStandaloneRegistrations.Leo2A4_86, "Leopard 2A4 (1986)", new[] { "LEO2A3" }, "Chance Leopard 2A4 (1986) spawns as a Leopard 2A3 instead.", defaultChancePercent: 30, defaultGuaranteedPerPlatoon: 1);
+
+            AddDowngrade(FuldaStandaloneRegistrations.Leo2K, "Leopard 2K", new[] { "LEO1A4", "LEO1A3A3" }, "Chance that Leopard 2K's spawn as Leopard 1A4/1A3A3 stand-ins.", defaultChancePercent: 20, defaultGuaranteedPerPlatoon: 2);
+
+            AddDowngrade(FuldaStandaloneRegistrations.T64Bv1988Unit, "T-64BV 1988", new[] { FuldaStandaloneRegistrations.T64BvUnit }, "Chance T-64BV obr.1988 spawns as obr.1985 (no Agava) instead.", defaultChancePercent: 30, defaultGuaranteedPerPlatoon: 1);
+
+            AddDowngrade(FuldaStandaloneRegistrations.T64Bv1_1988Unit, "T-64BV1 1988", new[] { FuldaStandaloneRegistrations.T64Bv1Unit }, "Chance T-64BV1 obr.1988 spawns as obr.1985 (no Agava) instead.", defaultChancePercent: 30, defaultGuaranteedPerPlatoon: 1);
         }
 
         public static FailRateVehicleRule AddDowngrade(string anchorUniqueName, string configKey, string[] alternateUniqueNames, string configComment, int defaultChancePercent, int defaultGuaranteedPerPlatoon = 0)
