@@ -1,4 +1,4 @@
-﻿using GHPC.Equipment;
+using GHPC.Equipment;
 using UnityEngine;
 
 namespace Fulda1989
@@ -9,6 +9,8 @@ namespace Fulda1989
         public static ArmorCodexScriptable eber;
         public static ArmorCodexScriptable vorschlaghammer;
         public static ArmorCodexScriptable ctech;
+        public static ArmorCodexScriptable t64bvUfpFiveLayer;
+
         public static void Init()
         {
             if (done) return;
@@ -22,7 +24,7 @@ namespace Fulda1989
             ebercomposite.NormalizesHits = true;
             ebercomposite.ThicknessSource = ArmorType.RhaSource.Multipliers;
             ebercomposite.SpallAngleMultiplier = 0.9f;
-            ebercomposite.SpallPowerMultiplier = 0.85f;
+            ebercomposite.SpallPowerMultiplier = 0.7f;
             ebercomposite.RhaeMultiplierCe = 2.4f;
             ebercomposite.RhaeMultiplierKe = 1f;
             ebercomposite.CrushThicknessModifier = 1f;
@@ -37,7 +39,7 @@ namespace Fulda1989
             vorschlag.NormalizesHits = true;
             vorschlag.ThicknessSource = ArmorType.RhaSource.Multipliers;
             vorschlag.SpallAngleMultiplier = 0.8f;
-            vorschlag.SpallPowerMultiplier = 0.6f;
+            vorschlag.SpallPowerMultiplier = 0.5f;
             vorschlag.RhaeMultiplierCe = 2.25f;
             vorschlag.RhaeMultiplierKe = 1f;
             vorschlag.CrushThicknessModifier = 1f;
@@ -52,11 +54,26 @@ namespace Fulda1989
             ctec.NormalizesHits = true;
             ctec.ThicknessSource = ArmorType.RhaSource.Multipliers;
             ctec.SpallAngleMultiplier = 0.9f;
-            ctec.SpallPowerMultiplier = 0.8f;
-            ctec.RhaeMultiplierCe = 2f;
+            ctec.SpallPowerMultiplier = 0.7f;
+            ctec.RhaeMultiplierCe = 1.5f;
             ctec.RhaeMultiplierKe = 1f;
             ctec.CrushThicknessModifier = 1f;
             ctech.ArmorType = ctec;
+
+            t64bvUfpFiveLayer = ScriptableObject.CreateInstance<ArmorCodexScriptable>();
+            t64bvUfpFiveLayer.name = "5-layer upper glacis array";
+            ArmorType ufplayer = new ArmorType();
+            ufplayer.Name = "5-layer upper glacis array";
+            ufplayer.CanRicochet = true;
+            ufplayer.CanShatterLongRods = true;
+            ufplayer.NormalizesHits = true;
+            ufplayer.ThicknessSource = ArmorType.RhaSource.Multipliers;
+            ufplayer.SpallAngleMultiplier = 0.9f;
+            ufplayer.SpallPowerMultiplier = 0.7f;
+            ufplayer.RhaeMultiplierCe = 1.35f;
+            ufplayer.RhaeMultiplierKe = 1f;
+            ufplayer.CrushThicknessModifier = 1f;
+            t64bvUfpFiveLayer.ArmorType = ufplayer;
 
             done = true;
         }
