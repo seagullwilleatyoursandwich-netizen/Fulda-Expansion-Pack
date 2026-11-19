@@ -10,8 +10,10 @@ using HarmonyLib;
 using MelonLoader;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Fulda1989.FailRate
 {
@@ -24,8 +26,11 @@ namespace Fulda1989.FailRate
     public static class FailRateSystem
     {
         public static MelonPreferences_Entry<bool> Enabled;
-        public static MelonPreferences_Entry<bool> SkipNeutralSpawns;
         public static MelonPreferences_Entry<bool> LogSwaps;
+        public static MelonPreferences_Entry<bool> CascadeEnabled;
+
+        const int CascadeSafetyHopCap = 32;
+        const string ShowcaseSceneName = "TR01_showcase";
 
         public static bool IsEnabled => Enabled != null && Enabled.Value;
 
@@ -34,14 +39,21 @@ namespace Fulda1989.FailRate
             Enabled = category.GetEntry<bool>("FRS | Master switch") ?? category.CreateEntry<bool>("FRS | Master switch", true);
             Enabled.Comment = "When true, standalone vehicles listed in the Fail-Rate catalog may spawn as a different vehicle (downgrades / upgrades).";
 
-            SkipNeutralSpawns = category.GetEntry<bool>("FRS | Skip neutral / showcase spawns") ?? category.CreateEntry<bool>("FRS | Skip neutral / showcase spawns", true);
-            SkipNeutralSpawns.Comment = "Keeps training-range and other Neutral showcase spawns exact (no FRS roll).";
-
             LogSwaps = category.GetEntry<bool>("FRS | Log spawn swaps") ?? category.CreateEntry<bool>("FRS | Log spawn swaps", false);
             LogSwaps.Comment = "Writes a MelonLoader message when FRS changes a unit prefab at spawn.";
 
+            CascadeEnabled = category.GetEntry<bool>("FRS | Cascade");
+            if (CascadeEnabled == null)
+            {
+                MelonPreferences_Entry<int> legacyDepth = category.GetEntry<int>("FRS | Cascade depth");
+                bool defaultOn = legacyDepth == null || legacyDepth.Value > 0;
+                CascadeEnabled = category.CreateEntry<bool>("FRS | Cascade", defaultOn);
+            }
+
+            CascadeEnabled.Comment = "After a swap, roll again on the new vehicle type (e.g. NPzK-140 -> 2A4 '88 -> 2A4 '86). Platoon guarantees only apply on the first hop. Off = one roll per spawn.";
+
             FailRateCatalog.Config(category);
-            MelonLogger.Msg($"[FRS] MelonPreferences: {FailRateCatalog.AllRules.Count} vehicle rule(s) registered under \"{category?.Identifier}\".");
+            // MelonLogger.Msg($"[FRS] MelonPreferences: {FailRateCatalog.AllRules.Count} vehicle rule(s) registered under \"{category?.Identifier}\".");
         }
 
         public static void ResetForNewMission()
@@ -54,7 +66,7 @@ namespace Fulda1989.FailRate
             if (!IsEnabled || string.IsNullOrEmpty(requestedUniqueName))
                 return requestedUniqueName;
 
-            if (SkipNeutralSpawns != null && SkipNeutralSpawns.Value && metaData != null && metaData.Allegiance == Faction.Neutral)
+            if (IsShowcaseScene())
                 return requestedUniqueName;
 
             if (FuldaTrainingRangeMissions.IsActiveFuldaTrainingMission())
@@ -64,51 +76,88 @@ namespace Fulda1989.FailRate
             {
                 if (LogSwaps != null && LogSwaps.Value && FailRateCatalog.FindRule(requestedUniqueName) != null)
                 {
-                    int platoonSize = FailRatePlatoonState.GetExpectedPlatoonSize();
+                    int platoonSize = FailRatePlatoonState.GetKnownPlatoonMemberCount();
                     string reason = platoonSize == 0 ? "no platoon" : "1-vehicle platoon";
-                    MelonLogger.Msg($"[FRS] lone spawn ({reason}): {requestedUniqueName} (FRS skipped)");
+                    // MelonLogger.Msg($"[FRS] lone spawn ({reason}): {requestedUniqueName} (FRS skipped)");
                 }
 
                 return requestedUniqueName;
             }
 
-            FailRateVehicleRule rule = FailRateCatalog.FindRule(requestedUniqueName);
-            if (rule == null || rule.AlternateUniqueNames == null || rule.AlternateUniqueNames.Length == 0)
-                return requestedUniqueName;
+            bool cascade = CascadeEnabled != null && CascadeEnabled.Value;
+            int maxHop = cascade ? CascadeSafetyHopCap : 0;
+            string current = requestedUniqueName;
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { current };
 
-            if (FailRatePlatoonState.TryConsumeGuaranteedOriginal(requestedUniqueName, metaData, rule.CurrentGuaranteedOriginalsPerPlatoon))
+            for (int hop = 0; hop <= maxHop; hop++)
+            {
+                bool allowPlatoonGuarantees = hop == 0;
+                if (!TryApplyFailRateHop(ref current, metaData, hop, allowPlatoonGuarantees, out bool swapped))
+                    break;
+
+                if (!swapped)
+                    break;
+
+                if (visited.Contains(current))
+                    break;
+
+                visited.Add(current);
+            }
+
+            return current;
+        }
+
+        static bool TryApplyFailRateHop(ref string uniqueName, UnitMetaData metaData, int hopIndex, bool allowPlatoonGuarantees, out bool swapped)
+        {
+            swapped = false;
+
+            FailRateVehicleRule rule = FailRateCatalog.FindRule(uniqueName);
+            if (rule == null || rule.AlternateUniqueNames == null || rule.AlternateUniqueNames.Length == 0)
+                return false;
+
+            if (allowPlatoonGuarantees && FailRatePlatoonState.TryConsumeGuaranteedOriginal(uniqueName, metaData, rule.CurrentGuaranteedOriginalsPerPlatoon))
             {
                 if (LogSwaps != null && LogSwaps.Value)
                 {
                     bool inPlatoon = FailRatePlatoonState.InsideComposerSpawnScope && FailRatePlatoonState.ActivePlatoonInstanceId.HasValue;
                     string role = !inPlatoon ? "lone spawn" : FailRatePlatoonState.CurrentSpawnIsPlatoonLeaderSlot ? "platoon leader" : "platoon wingman";
-                    MelonLogger.Msg($"[FRS] guaranteed original: {requestedUniqueName} ({role})");
+                    string hopLabel = hopIndex > 0 ? $"cascade hop {hopIndex + 1}, " : string.Empty;
+                    MelonLogger.Msg($"[FRS] guaranteed original ({hopLabel}): {uniqueName} ({role})");
                 }
 
-                return requestedUniqueName;
+                return true;
             }
 
             int chancePercent = rule.CurrentChancePercent;
             if (chancePercent <= 0 || UnityEngine.Random.Range(0, 100) >= chancePercent)
-                return requestedUniqueName;
+                return false;
 
             string[] valid = rule.AlternateUniqueNames.Where(alt => !string.IsNullOrEmpty(alt) && PrefabExists(alt)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
             if (valid.Length == 0)
-                return requestedUniqueName;
+                return false;
 
             string picked = valid[UnityEngine.Random.Range(0, valid.Length)];
 
-            if (string.Equals(picked, requestedUniqueName, StringComparison.OrdinalIgnoreCase))
-                return requestedUniqueName;
+            if (string.Equals(picked, uniqueName, StringComparison.OrdinalIgnoreCase))
+                return false;
 
             if (LogSwaps != null && LogSwaps.Value)
             {
                 string direction = rule.Mode == FailRateMode.Upgrade ? "upgrade" : "downgrade";
-                MelonLogger.Msg($"[FRS] {direction}: {requestedUniqueName} → {picked} ({chancePercent}% roll)");
+                string hopLabel = hopIndex > 0 ? $"cascade hop {hopIndex + 1}: " : string.Empty;
+                MelonLogger.Msg($"[FRS] {hopLabel}{direction}: {uniqueName} → {picked} ({chancePercent}% roll)");
             }
 
-            return picked;
+            uniqueName = picked;
+            swapped = true;
+            return true;
+        }
+
+        static bool IsShowcaseScene()
+        {
+            Scene scene = SceneManager.GetActiveScene();
+            return scene.IsValid() && string.Equals(scene.name, ShowcaseSceneName, StringComparison.OrdinalIgnoreCase);
         }
 
         static bool PrefabExists(string uniqueName)
@@ -170,7 +219,7 @@ namespace Fulda1989.FailRate
             if (node == null)
                 return;
 
-            PlatoonData platoonData = node.GetComponent<PlatoonData>() ?? node.GetComponentInParent<PlatoonData>();
+            PlatoonData platoonData = ResolvePlatoonDataForSpawnNode(node);
             FailRatePlatoonState.BindPlatoonSpawn(platoonData, allegiance);
         }
 
@@ -180,6 +229,18 @@ namespace Fulda1989.FailRate
             FailRatePlatoonState.CurrentSpawnIsPlatoonLeaderSlot = __state.PreviousSpawnIsPlatoonLeaderSlot;
             FailRatePlatoonState.InsideComposerSpawnScope = __state.PreviousInsideComposerSpawnScope;
             FailRatePlatoonState.RestoreScopedPlatoonBucketKey(__state.PreviousScopedPlatoonBucketKey);
+        }
+
+        static PlatoonData ResolvePlatoonDataForSpawnNode(Transform node)
+        {
+            if (node == null)
+                return null;
+
+            PlatoonData[] onNode = node.GetComponents<PlatoonData>();
+            if (onNode != null && onNode.Length > 0)
+                return onNode[onNode.Length - 1];
+
+            return node.GetComponentInParent<PlatoonData>();
         }
     }
 
@@ -197,6 +258,11 @@ namespace Fulda1989.FailRate
         public static void Prefix(string[] unitKeys)
         {
             FailRatePlatoonState.BeginPlatoonSpawn(unitKeys);
+        }
+
+        public static void Postfix()
+        {
+            FailRatePlatoonState.EndPlatoonSpawn();
         }
     }
 
